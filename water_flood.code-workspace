@@ -1,0 +1,19 @@
+{
+  "folders": [
+    {
+      "name": "Water Flood (Main Project / Docs)",
+      "path": "."
+    },
+    {
+      "name": "RX_Master (ESP32-S3)",
+      "path": "RX_Master"
+    },
+    {
+      "name": "TX_Node (LoRa32u4)",
+      "path": "TX_Node"
+    }
+  ],
+  "settings": {
+    "platformio-ide.activateOnlyOnPlatformIOProject": false
+  }
+}
