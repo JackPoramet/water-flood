@@ -1,66 +1,18 @@
 #include <Arduino.h>
 #include <SPI.h>
 #include <LoRa.h>
+#include "Config.h"
 #include "Protocol.h"
-
-// =========================================================================
-// กำหนด ID ประจำตัว Node (หากไม่ระบุใน build_flags จะใช้ Node ID = 1 เป็นค่าเริ่มต้น)
-// =========================================================================
-#ifndef NODE_ID
-  #define NODE_ID NODE_ID_1
-#endif
-
-const uint8_t MY_NODE_ID = NODE_ID;
-
-// Pin Definitions สำหรับบอร์ด LoRa32u4 (ATmega32U4)
-#define PIN_LORA_SS    8
-#define PIN_LORA_RST   4
-#define PIN_LORA_DIO0  7
-#define PIN_LED        13
-
-#define LORA_BAND      433E6  // 433 MHz
+#include "FloodSensor.h"
 
 uint8_t packetSequence = 0;
 unsigned long bootMillis = 0;
 
-// ฟังก์ชันจำลองค่าระดับน้ำตาม Node ID
-void generateMockData(SensorPayload &payload) {
-  unsigned long now = millis();
-  float t = (now - bootMillis) / 1000.0;
-
-  if (MY_NODE_ID == NODE_ID_1) {
-    // Node 1: ระดับน้ำปกติ (35 - 75 cm)
-    payload.waterLevelCm = (uint16_t)(55.0 + 20.0 * sin(t / 25.0));
-  } else if (MY_NODE_ID == NODE_ID_2) {
-    // Node 2: เฝ้าระวัง (120 - 170 cm)
-    payload.waterLevelCm = (uint16_t)(145.0 + 25.0 * sin(t / 18.0));
-  } else {
-    // Node 3: วิกฤตน้ำท่วม (215 - 280 cm)
-    payload.waterLevelCm = (uint16_t)(245.0 + 35.0 * sin(t / 12.0));
-  }
-
-  payload.waterPercent = constrain(map(payload.waterLevelCm, 0, 300, 0, 100), 0, 100);
-
-  if (payload.waterLevelCm >= 200) {
-    payload.floodStatus = FLOOD_CRITICAL;
-  } else if (payload.waterLevelCm >= 100) {
-    payload.floodStatus = FLOOD_WARNING;
-  } else {
-    payload.floodStatus = FLOOD_NORMAL;
-  }
-
-  payload.batteryMilliVolt = (uint16_t)(4050 - (t / 120.0));
-  if (payload.batteryMilliVolt < 3500) payload.batteryMilliVolt = 3500;
-
-  payload.uptimeSec = (uint16_t)((now - bootMillis) / 1000);
-}
-
-// ฟังก์ชันส่งข้อมูลเซนเซอร์ตอบกลับ Master
 void sendDataResponse() {
   digitalWrite(PIN_LED, HIGH);
 
   SensorPayload payload;
-  generateMockData(payload);
+  generateFloodData(MY_NODE_ID, bootMillis, payload);
 
   PacketHeader header;
   header.magic      = PROTOCOL_MAGIC_BYTE;
@@ -101,7 +53,6 @@ void sendDataResponse() {
   Serial.println(F("s"));
 }
 
-// ฟังก์ชันประมวลผลแพ็กเกจที่ได้รับจาก Master
 void handleIncomingPacket(int packetSize) {
   if (packetSize < (int)(sizeof(PacketHeader) + 2)) {
     return;
@@ -119,7 +70,7 @@ void handleIncomingPacket(int packetSize) {
   }
 
   if (header->targetId != MY_NODE_ID && header->targetId != NODE_ID_BROADCAST) {
-    return; // ไม่ใช่คำสั่งสำหรับ Node นี้
+    return;
   }
 
   size_t expectedLen = sizeof(PacketHeader) + header->payloadLen;
@@ -142,8 +93,7 @@ void handleIncomingPacket(int packetSize) {
     Serial.print(LoRa.packetRssi());
     Serial.println(F(" dBm)"));
     
-    // หน่วงเวลา 100ms เพื่อให้ Master เคลียร์และเข้าโหมด RX สมบูรณ์
-    delay(100);
+    delay(TURNAROUND_DELAY_MS);
     sendDataResponse();
   }
 }
@@ -178,11 +128,11 @@ void setup() {
     }
   }
 
-  LoRa.setTxPower(20, PA_OUTPUT_PA_BOOST_PIN);
-  LoRa.setSpreadingFactor(12);
-  LoRa.setSignalBandwidth(125E3);
-  LoRa.setCodingRate4(8);
-  LoRa.setSyncWord(0x12);
+  LoRa.setTxPower(LORA_TX_POWER, PA_OUTPUT_PA_BOOST_PIN);
+  LoRa.setSpreadingFactor(LORA_SF);
+  LoRa.setSignalBandwidth(LORA_BW);
+  LoRa.setCodingRate4(LORA_CR);
+  LoRa.setSyncWord(LORA_SYNC_WORD);
   LoRa.enableCrc();
 
   Serial.println(F("[+] LoRa Initialized successfully!"));

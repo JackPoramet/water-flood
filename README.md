@@ -1,6 +1,6 @@
-# 🌊 ระบบตรวจเช็คน้ำท่วมไร้สาย Multi-Node LoRa + WiFi Web Dashboard
+# 🌊 ระบบตรวจเช็คน้ำท่วมไร้สาย Multi-Node LoRa + FreeRTOS Dual-Core Web Dashboard
 
-ระบบตรวจวัดและแจ้งเตือนภัยระดับน้ำท่วมแบบไร้สายระยะไกล (LoRa 433MHz) โดยใช้ **ESP32-S3 เป็น Master Controller & Web Server (เชื่อมต่อ WiFi)** และ **ATmega32U4 (LoRa32u4) 3 ตัวเป็นโหนดตรวจวัดระดับน้ำ (Node 1, 2, 3)** สื่อสารผ่านโปรโตคอล **Master-Initiated Polling** ป้องกันการชนกันของสัญญาณวิทยุ (Collision-Free) พร้อมหน้าเว็บ **Mobile Dashboard** แสดงผลสดแบบ Real-time บนเครือข่าย WiFi เดียวกัน
+ระบบตรวจวัดและแจ้งเตือนภัยระดับน้ำท่วมแบบไร้สายระยะไกล (LoRa 433MHz) โดยใช้ **ESP32-S3 Dual-Core FreeRTOS (Core 0: WiFi WebServer & mDNS, Core 1: LoRa Polling + OLED)** และ **ATmega32U4 (LoRa32u4) 3 ตัวเป็นโหนดตรวจวัดระดับน้ำ (Node 1, 2, 3)** สื่อสารผ่านโปรโตคอล **Master-Initiated Polling** ป้องกันการชนกันของสัญญาณวิทยุ (Collision-Free) พร้อมหน้าเว็บ **Mobile Dashboard** แบบ Real-time
 
 ---
 
@@ -8,34 +8,76 @@
 
 | วันที่ | ส่วนที่แก้ไข | รายละเอียดการปรับปรุง |
 |---|---|---|
-| 2026-08-19 | `RX_Master` & `TX_Node` | 1. ปรับเพิ่ม Turnaround Delay ฝั่ง Node เป็น `100ms` เพื่อให้ Master สลับเข้าโหมด RX สมบูรณ์ก่อนส่งตอบกลับ<br>2. ซิงค์ `LoRa.setSyncWord(0x12)` และ `LoRa.enableCrc()` ให้ตรงกันทั้งสองฝั่ง<br>3. ปรับ `POLL_TIMEOUT_MS = 3500ms` ให้ครอบคลุม Airtime ของ LoRa SF12<br>4. อัปเดตไฟล์ `water_flood.code-workspace` รวมทั้ง 3 ส่วนใน Workspace เดียว |
-| 2026-08-19 | `RX_Master/src/main.cpp` | เปลี่ยนโหมด WiFi จาก Access Point (ปล่อยไวไฟ) เป็น **Station Mode (เชื่อมต่อ WiFi บ้าน/เราเตอร์)** พร้อมระบบ **mDNS (`http://floodmonitor.local`)** |
+| 2026-08-19 | `RX_Master/include/WebDashboard.h` | **ปรับปรุงหน้าเว็บ Dashboard เป็น Minimalist White Theme:**<br>1. ตัดอิโมจิ (Emoji) ทั้งหมดออกจากหน้าเว็บ เพื่อความเรียบง่ายและเป็นทางการ<br>2. เปลี่ยนพื้นหลังเป็นโทนสีขาวสะอาดตา (Clean Light Mode Theme)<br>3. ตัดแอนิเมชันและเอฟเฟกต์ที่ Overengineered ออก คงเหลือเฉพาะข้อมูลสำคัญที่จำเป็นต่อการตรวจเช็ค |
+| 2026-08-19 | `RX_Master` & `TX_Node` | **ปรับแต่งโปรไฟล์สำหรับระยะทางไกลสูงสุด (Maximum Long-Range Profile):** SF12, CR 4/8, กำลังส่ง 20dBm, Timeout 3500ms, Turnaround 100ms |
+| 2026-08-19 | ทั้งโปรเจกต์ | **จัดโครงสร้างไฟล์โปรเจกต์เป็น Hierarchy / Modular Architecture:** แยกโมดูล `Config.h`, `SystemState.h`, `Protocol.h`, `LoRaEngine`, `WebPortal`, `WebDashboard.h`, และ `DisplayManager` |
 
 ---
 
-## 🏛️ สถาปัตยกรรมการทำงาน (System Architecture)
+## 📱 วิธีการเข้าดูหน้าเว็บ Mobile Dashboard
+
+1. ตรวจสอบว่าสมาร์ทโฟนหรือคอมพิวเตอร์เชื่อมต่อ **WiFi วงเดียวกันกับที่ ESP32-S3 เชื่อมต่อ (เช่น CoE#01)**
+2. ดู IP Address ที่ปรากฏบน **หน้าจอ OLED** บรรทัดที่ 2 ของ ESP32-S3 (เช่น `IP: 192.168.1.150`)
+3. เปิดเว็บเบราว์เซอร์แล้วพิมพ์:
+   $$\text{\bf http://<IP_ที่แสดงบนหน้าจอOLED>} \quad \text{(เช่น http://192.168.1.150)}$$
+4. หน้าจอจะแสดง Dashboard คลีนโทนสีขาว แสดงระดับน้ำ แบตเตอรี่ และสถานะเตือนภัยของทุก Node แบบ Real-time
+
+---
+
+## 📁 โครงสร้างโปรเจกต์แบบโมดูลาร์ (Project File Hierarchy)
 
 ```
-        [ WiFi Router / ไวไฟบ้าน ]
-               |
-               +-------------------------------------------------+
-               |              ESP32-S3 (RX_Master)               |
-               |  - เชื่อมต่อ WiFi บ้าน (Station Mode)           |
-               |  - Web Server & mDNS (http://floodmonitor.local)|
-               |  - LoRa SX1278 Polling Master (433MHz)          |
-               |  - I2C OLED (SSD1306 128x64 Dashboard)          |
-               +------------------------+------------------------+
-                                        |
-       +--------------------------------+-------------------------------+
-       | (WiFi Web Browser: IP หรือ floodmonitor.local)                 | (LoRa 433MHz Polling)
-       v                                                                v
-[ 📱 Mobile Phone / PC ในวง WiFi เดียวกัน ]             +---------------+---------------+
-(เปิดเบราว์เซอร์ดู Dashboard สด)                        |               |               |
-                                                 +------v------+ +------v------+ +------v------+
-                                                 |   Node 1    | |   Node 2    | |   Node 3    |
-                                                 | (LoRa32u4)  | | (LoRa32u4)  | | (LoRa32u4)  |
-                                                 | ID: 0x01    | | ID: 0x02    | | ID: 0x03    |
-                                                 +-------------+ +-------------+ +-------------+
+water_flood/
+├── README.md                      <-- เอกสารคู่มือระบบและสรุปการทำงาน
+├── AGENTS.md                      <-- กฎข้อบังคับการพัฒนาและบันทึกเอกสาร
+├── water_flood.code-workspace     <-- ไฟล์ Workspace รวมโปรเจกต์ของ VS Code
+│
+├── RX_Master/                     <-- [ESP32-S3 Master + WebServer]
+│   ├── include/
+│   │   ├── Config.h               <-- การตั้งค่า Pin, WiFi, RF และ Timing กลาง
+│   │   ├── Protocol.h             <-- โครงสร้าง Binary Frame, Header, CRC16
+│   │   ├── SystemState.h          <-- ตัวแปรสถานะส่วนกลาง, Mutex, โครงสร้าง Node
+│   │   ├── WebDashboard.h         <-- หน้าเว็บ Clean White Theme (No Emojis)
+│   │   ├── WebPortal.h            <-- โมดูลจัดการ WiFi และ HTTP Server
+│   │   ├── LoRaEngine.h           <-- โมดูล LoRa Polling State Machine
+│   │   └── DisplayManager.h       <-- โมดูลจัดการหน้าจอ OLED SSD1306
+│   ├── src/
+│   │   ├── WebPortal.cpp          <-- ซอร์สโค้ด Web Server Task (Core 0)
+│   │   ├── LoRaEngine.cpp         <-- ซอร์สโค้ด LoRa Polling Task (Core 1)
+│   │   ├── DisplayManager.cpp     <-- ซอร์สโค้ด OLED Display Task (Core 1)
+│   │   └── main.cpp               <-- จุดเริ่มต้นโปรแกรม (สร้าง Mutex & RTOS Tasks สั้นกระชับ)
+│   └── platformio.ini
+│
+└── TX_Node/                       <-- [LoRa32u4 Sensor Node (Node 1, 2, 3)]
+    ├── include/
+    │   ├── Config.h               <-- การตั้งค่า Pin, RF, Node ID, และ Turnaround Delay
+    │   ├── Protocol.h             <-- โครงสร้าง Binary Protocol ส่วนกลาง
+    │   └── FloodSensor.h          <-- ส่วนคำนวณและจำลองข้อมูลระดับน้ำ
+    ├── src/
+    │   ├── FloodSensor.cpp        <-- ตรรกะจำลองระดับน้ำและแรงดันแบตเตอรี่
+    │   └── main.cpp               <-- ลูปสแตนด์บายฟังคำสั่ง Polling และตอบกลับ
+    └── platformio.ini
+```
+
+---
+
+## ⚡ สถาปัตยกรรม Dual-Core FreeRTOS
+
+```
++---------------------------------------------------------------------------------------+
+|                                ESP32-S3 Dual-Core SoC                                 |
+|                                                                                       |
+|   [ Core 0 ] - Networking & Web Engine           [ Core 1 ] - Radio & UI Engine       |
+|   +------------------------------------+         +--------------------------------+   |
+|   |  - WiFi Station Handler (WIFI_STA) |         |  - LoRa SX1278 Polling Engine  |   |
+|   |  - HTTP WebServer (Port 80)        |         |    (Node 1 -> Node 2 -> Node 3)|   |
+|   |  - REST API (/api/data, /api/poll) |         |  - CRC16 & Timeout Handler     |   |
+|   |                                    |         |  - I2C OLED (SSD1306 128x64)   |   |
+|   +-----------------+------------------+         +----------------+---------------+   |
+|                     |                                             |                   |
+|                     +-----------------> [ Mutex ] <---------------+                   |
+|                                    (Node Telemetry)                                   |
++---------------------------------------------------------------------------------------+
 ```
 
 ---
@@ -68,25 +110,27 @@
 
 ---
 
-## 🚀 วิธีการอัปโหลดโค้ดเพื่อทดสอบ (Upload Guide)
+## 🚀 วิธีการอัปโหลดโค้ด (Upload Guide)
 
-### 1. อัปโหลดบอร์ด Node (LoRa32u4)
-```bash
-cd TX_Node
-pio run -e node1 --target upload --upload-port COM22
-```
-
-### 2. อัปโหลดบอร์ด Master (ESP32-S3)
+### 1. อัปโหลดบอร์ด Master (ESP32-S3)
 ```bash
 cd RX_Master
 pio run --target upload --upload-port COM12
 ```
 
----
-
-## 📱 วิธีการเข้าดูหน้าเว็บ Mobile Dashboard
-
-1. เชื่อมต่อสมาร์ทโฟนหรือคอมพิวเตอร์เข้ากับ **WiFi วงเดียวกับที่ ESP32-S3 เชื่อมต่อ (CoE#01)**
-2. ดู IP Address บนหน้าจอ OLED ของ ESP32-S3 (เช่น `192.168.1.xxx`)
-3. เปิดเว็บเบราว์เซอร์แล้วพิมพ์:
-   $$\text{\bf http://<IP_ของ_ESP32>} \quad \text{หรือ} \quad \text{\bf http://floodmonitor.local}$$
+### 2. อัปโหลดบอร์ด Node (LoRa32u4)
+- **สำหรับ Node 1 (คลองระบายน้ำ):**
+  ```bash
+  cd TX_Node
+  pio run -e node1 --target upload --upload-port COM22
+  ```
+- **สำหรับ Node 2 (ริมแม่น้ำเฝ้าระวัง):**
+  ```bash
+  cd TX_Node
+  pio run -e node2 --target upload --upload-port COM22
+  ```
+- **สำหรับ Node 3 (จุดเสี่ยงน้ำท่วมชุมชน):**
+  ```bash
+  cd TX_Node
+  pio run -e node3 --target upload --upload-port <COM_PORT>
+  ```
