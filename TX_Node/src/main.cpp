@@ -8,11 +8,33 @@
 uint8_t packetSequence = 0;
 unsigned long bootMillis = 0;
 
+#if defined(USE_MODBUS_SENSOR) || defined(USE_JSN_SR04T) || defined(USE_HC_SR04)
+// ตัวแปรสำหรับ Periodic Sensor Reading (Node 1, 2, 3)
+unsigned long lastSensorReadMs = 0;
+SensorPayload latestSensorData; // เก็บค่าล่าสุดจากเซนเซอร์จริง
+bool           sensorDataReady = false;
+#endif
+
+// ฟังก์ชันช่วยควบคุม LED
+inline void setStatusLed(uint8_t state) {
+  digitalWrite(PIN_LED, state);
+}
+
 void sendDataResponse() {
-  digitalWrite(PIN_LED, HIGH);
+  setStatusLed(HIGH);
 
   SensorPayload payload;
-  generateFloodData(MY_NODE_ID, bootMillis, payload);
+
+#if defined(USE_MODBUS_SENSOR) || defined(USE_JSN_SR04T) || defined(USE_HC_SR04)
+  // ใช้ค่าจริงจากเซนเซอร์ที่อ่านไว้ล่าสุด (หากมี)
+  if (sensorDataReady) {
+    memcpy(&payload, &latestSensorData, sizeof(SensorPayload));
+  } else {
+    readFloodSensor(MY_NODE_ID, bootMillis, payload);
+  }
+#else
+  readFloodSensor(MY_NODE_ID, bootMillis, payload);
+#endif
 
   PacketHeader header;
   header.magic      = PROTOCOL_MAGIC_BYTE;
@@ -36,7 +58,7 @@ void sendDataResponse() {
   LoRa.write(buffer, totalLen + 2);
   LoRa.endPacket();
 
-  digitalWrite(PIN_LED, LOW);
+  setStatusLed(LOW);
 
   Serial.print(F("[TX->Master] Pkt #"));
   Serial.print(header.seqNum);
@@ -116,14 +138,27 @@ void setup() {
   Serial.println(F(" Initializing... "));
   Serial.println(F("=================================================="));
 
+#if defined(USE_MODBUS_SENSOR)
+  initFloodSensor();
+  Serial.println(F("[+] Sensor Mode: RS485 Modbus RTU (DJLK-003AB)"));
+#elif defined(USE_JSN_SR04T)
+  initFloodSensor();
+  Serial.println(F("[+] Sensor Mode: Ultrasonic (JSN-SR04T)"));
+#elif defined(USE_HC_SR04)
+  initFloodSensor();
+  Serial.println(F("[+] Sensor Mode: Ultrasonic (HC-SR04)"));
+#else
+  Serial.println(F("[+] Sensor Mode: Simulated Data"));
+#endif
+
   LoRa.setPins(PIN_LORA_SS, PIN_LORA_RST, PIN_LORA_DIO0);
 
   if (!LoRa.begin(LORA_BAND)) {
     Serial.println(F("[-] LoRa begin failed! Check Pins & Wiring"));
     while (1) {
-      digitalWrite(PIN_LED, HIGH);
+      setStatusLed(HIGH);
       delay(150);
-      digitalWrite(PIN_LED, LOW);
+      setStatusLed(LOW);
       delay(150);
     }
   }
@@ -141,14 +176,23 @@ void setup() {
   Serial.println(F(" in Standby Listening Mode (Waiting for Master Poll)...\n"));
 
   for (int i = 0; i < 3; i++) {
-    digitalWrite(PIN_LED, HIGH);
+    setStatusLed(HIGH);
     delay(100);
-    digitalWrite(PIN_LED, LOW);
+    setStatusLed(LOW);
     delay(100);
   }
 }
 
 void loop() {
+#if defined(USE_MODBUS_SENSOR) || defined(USE_JSN_SR04T) || defined(USE_HC_SR04)
+  // อ่านค่าจากเซนเซอร์เป็นระยะ (ตาม SENSOR_READ_INTERVAL_MS)
+  unsigned long now = millis();
+  if (now - lastSensorReadMs >= SENSOR_READ_INTERVAL_MS) {
+    lastSensorReadMs = now;
+    sensorDataReady = readFloodSensor(MY_NODE_ID, bootMillis, latestSensorData);
+  }
+#endif
+
   int packetSize = LoRa.parsePacket();
   if (packetSize) {
     handleIncomingPacket(packetSize);

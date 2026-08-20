@@ -36,4 +36,35 @@ const uint8_t MY_NODE_ID = NODE_ID;
 // =========================================================================
 #define TURNAROUND_DELAY_MS 100     // หน่วงเวลา 100ms เพื่อให้ Master เข้าสู่โหมด RX สมบูรณ์ก่อนส่งคลื่น SF12
 
+// =========================================================================
+// 5. Pin Definitions สำหรับ MAX485 RS485 Transceiver (เซนเซอร์ DJLK-003AB)
+//    ใช้ Serial1 (Hardware UART) ของ ATmega32U4 : RX=D0, TX=D1
+// =========================================================================
+#ifdef USE_MODBUS_SENSOR
+  #define PIN_RS485_RE          6       // Receiver Enable (Active LOW)
+  #define PIN_RS485_DE          9       // Driver Enable (Active HIGH)
+  #define MODBUS_SLAVE_ID       1       // Slave Address ของ DJLK-003AB (ค่าเริ่มต้น)
+  #define MODBUS_BAUD_RATE      9600    // Baud Rate: 9600, 8N1
+  #define MODBUS_REG_ADDR       0x0100  // Register Address สำหรับค่าระยะทาง (mm)
+  #define SENSOR_READ_INTERVAL_MS 2000  // อ่านค่าจากเซนเซอร์ทุก 2 วินาที
+#endif
+
+// =========================================================================
+// 6. Pin Definitions สำหรับ JSN-SR04T Ultrasonic Sensor (Node 2)
+// =========================================================================
+#ifdef USE_JSN_SR04T
+  #define PIN_JSN_TRIG          10      // Trigger Pin (D10)
+  #define PIN_JSN_ECHO          11      // Echo Pin (D11)
+  #define SENSOR_READ_INTERVAL_MS 1500  // อ่านค่าจากเซนเซอร์ทุก 1.5 วินาที
+#endif
+
+// =========================================================================
+// 7. Pin Definitions สำหรับ HC-SR04 Ultrasonic Sensor (Node 3)
+// =========================================================================
+#ifdef USE_HC_SR04
+  #define PIN_HC_TRIG           10      // Trigger Pin (D10)
+  #define PIN_HC_ECHO           11      // Echo Pin (D11)
+  #define SENSOR_READ_INTERVAL_MS 1000  // อ่านค่าจากเซนเซอร์ทุก 1 วินาที
+#endif
+
 #endif // CONFIG_H

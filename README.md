@@ -8,6 +8,9 @@
 
 | วันที่ | ส่วนที่แก้ไข | รายละเอียดการปรับปรุง |
 |---|---|---|
+| 2026-08-21 | `TX_Node` (env:node3) | **เพิ่มเซนเซอร์อัลตร้าโซนิค HC-SR04:**<br>1. พัฒนาโมดูล `HcSr04Manager` (Trig=D10, Echo=D11) คำนวณระยะทาง PulseIn พร้อมระบบ Auto-Retry<br>2. รองรับสลับโหมดผ่าน Conditional Flag (`USE_HC_SR04`)<br>3. **ไฟล์ที่เกี่ยวข้อง:** `platformio.ini`, `Config.h`, `HcSr04Manager.h/cpp`, `FloodSensor.h/cpp`, `main.cpp` |
+| 2026-08-21 | `TX_Node` (env:node2) | **เพิ่มเซนเซอร์อัลตร้าโซนิคกันน้ำ JSN-SR04T:**<br>1. พัฒนาโมดูล `JsnSr04tManager` (Trig=D10, Echo=D11) คำนวณระยะทางจากสัญญาณสะท้อน PulseIn พร้อมระบบ Auto-Retry<br>2. รองรับสลับโหมดผ่าน Conditional Flag (`USE_JSN_SR04T`)<br>3. **ไฟล์ที่เกี่ยวข้อง:** `platformio.ini`, `Config.h`, `JsnSr04tManager.h/cpp`, `FloodSensor.h/cpp`, `main.cpp` |
+| 2026-08-21 | `TX_Node` (env:node1) | **เพิ่มเซนเซอร์ DJLK-003AB (RS485 Modbus RTU):**<br>1. เปลี่ยน Node 1 จากข้อมูลจำลองเป็นอ่านค่าจริงจากเซนเซอร์ Ultrasonic DJLK-003AB ผ่าน MAX485<br>2. ใช้ `ModbusMaster` library + `Serial1` (Hardware UART) อ่าน Register `0x0100` ได้ค่าระยะทาง (mm)<br>3. ใช้ Conditional Compile (`USE_MODBUS_SENSOR`) เฉพาะ env:node1, Node 2/3 ยังใช้ข้อมูลจำลอง<br>4. **ไฟล์ที่แก้ไข:** `platformio.ini`, `Config.h`, `FloodSensor.h`, `FloodSensor.cpp`, `main.cpp` |
 | 2026-08-19 | `RX_Master/include/WebDashboard.h` | **ปรับปรุงหน้าเว็บ Dashboard เป็น Minimalist White Theme:**<br>1. ตัดอิโมจิ (Emoji) ทั้งหมดออกจากหน้าเว็บ เพื่อความเรียบง่ายและเป็นทางการ<br>2. เปลี่ยนพื้นหลังเป็นโทนสีขาวสะอาดตา (Clean Light Mode Theme)<br>3. ตัดแอนิเมชันและเอฟเฟกต์ที่ Overengineered ออก คงเหลือเฉพาะข้อมูลสำคัญที่จำเป็นต่อการตรวจเช็ค |
 | 2026-08-19 | `RX_Master` & `TX_Node` | **ปรับแต่งโปรไฟล์สำหรับระยะทางไกลสูงสุด (Maximum Long-Range Profile):** SF12, CR 4/8, กำลังส่ง 20dBm, Timeout 3500ms, Turnaround 100ms |
 | 2026-08-19 | ทั้งโปรเจกต์ | **จัดโครงสร้างไฟล์โปรเจกต์เป็น Hierarchy / Modular Architecture:** แยกโมดูล `Config.h`, `SystemState.h`, `Protocol.h`, `LoRaEngine`, `WebPortal`, `WebDashboard.h`, และ `DisplayManager` |
@@ -50,11 +53,17 @@ water_flood/
 │
 └── TX_Node/                       <-- [LoRa32u4 Sensor Node (Node 1, 2, 3)]
     ├── include/
-    │   ├── Config.h               <-- การตั้งค่า Pin, RF, Node ID, และ Turnaround Delay
+    │   ├── Config.h               <-- การตั้งค่า Pin, RF, Node ID, Turnaround Delay + Sensor Pins
     │   ├── Protocol.h             <-- โครงสร้าง Binary Protocol ส่วนกลาง
-    │   └── FloodSensor.h          <-- ส่วนคำนวณและจำลองข้อมูลระดับน้ำ
+    │   ├── FloodSensor.h          <-- อินเทอร์เฟซเซนเซอร์ (Unified API: Modbus / JSN / HC / จำลอง)
+    │   ├── ModbusManager.h        <-- โมดูล RS485 Modbus RTU (Node 1: MAX485 + DJLK-003AB)
+    │   ├── JsnSr04tManager.h      <-- โมดูล Ultrasonic (Node 2: JSN-SR04T Pulse Mode)
+    │   └── HcSr04Manager.h        <-- โมดูล Ultrasonic (Node 3: HC-SR04 Pulse Mode)
     ├── src/
-    │   ├── FloodSensor.cpp        <-- ตรรกะจำลองระดับน้ำและแรงดันแบตเตอรี่
+    │   ├── FloodSensor.cpp        <-- ตรรกะแปลงค่าและจัดระดับน้ำสำหรับทุก Node
+    │   ├── ModbusManager.cpp      <-- จัดการ Serial1, MAX485 DE/RE, ModbusMaster Library
+    │   ├── JsnSr04tManager.cpp    <-- จัดการ Trigger/Echo, PulseIn, Auto-Retry (Node 2)
+    │   ├── HcSr04Manager.cpp      <-- จัดการ Trigger/Echo, PulseIn, Auto-Retry (Node 3)
     │   └── main.cpp               <-- ลูปสแตนด์บายฟังคำสั่ง Polling และตอบกลับ
     └── platformio.ini
 ```
@@ -107,6 +116,45 @@ water_flood/
 | RESET | **D4** |
 | DIO0 | **D7** |
 | LED สถานะ | **D13** (กะพริบเมื่อส่ง/รับข้อมูล) |
+
+---
+
+### 3. โมดูล MAX485 ↔ LoRa32u4 (Node 1 — เซนเซอร์ DJLK-003AB)
+| ขา MAX485 | ขา LoRa32u4 | หมายเหตุ |
+|---|---|---|
+| **RO** (Receiver Out) | **D0 / RX** (Serial1 RX) | ข้อมูลจากเซนเซอร์เข้า |
+| **DI** (Driver Input) | **D1 / TX** (Serial1 TX) | ข้อมูลส่งไปเซนเซอร์ |
+| **RE** (Receiver Enable) | **D6** | Active LOW — ต่ำ = เปิดรับ |
+| **DE** (Driver Enable) | **D9** | Active HIGH — สูง = เปิดส่ง |
+| **VCC** | **5V** | ไฟเลี้ยง MAX485 |
+| **GND** | **GND** | กราวด์ร่วม |
+| **A, B** | สาย RS485 → DJLK-003AB | A↔A, B↔B |
+
+> **หมายเหตุ:** เซนเซอร์ DJLK-003AB ใช้ Modbus RTU (9600 8N1), Slave ID=1, Register `0x0100` คืนค่าระยะทาง (mm)
+
+---
+
+### 4. เซนเซอร์ JSN-SR04T ↔ LoRa32u4 (Node 2 — เซนเซอร์ Ultrasonic กันน้ำ)
+| ขา JSN-SR04T | ขา LoRa32u4 | หมายเหตุ |
+|---|---|---|
+| **TRIG** (Trigger) | **D10** | สัญญาณ Pulse เริ่มยิงคลื่น |
+| **ECHO** (Echo) | **D11** | สัญญาณ Pulse สะท้อนกลับ |
+| **5V / VCC** | **5V** | ไฟเลี้ยงโมดูล (5V) |
+| **GND** | **GND** | กราวด์ร่วม |
+
+> **หมายเหตุ:** JSN-SR04T มีพิสัยวัด 20 cm – 600 cm (Dead zone < 20 cm)
+
+---
+
+### 5. เซนเซอร์ HC-SR04 ↔ LoRa32u4 (Node 3 — เซนเซอร์ Ultrasonic ทั่วไป)
+| ขา HC-SR04 | ขา LoRa32u4 | หมายเหตุ |
+|---|---|---|
+| **TRIG** (Trigger) | **D10** | สัญญาณ Pulse เริ่มยิงคลื่น |
+| **ECHO** (Echo) | **D11** | สัญญาณ Pulse สะท้อนกลับ |
+| **VCC** | **5V** | ไฟเลี้ยงโมดูล (5V) |
+| **GND** | **GND** | กราวด์ร่วม |
+
+> **หมายเหตุ:** HC-SR04 มีพิสัยวัด 2 cm – 400 cm (ความแม่นยำสูงในระยะใกล้)
 
 ---
 

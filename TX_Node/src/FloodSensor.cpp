@@ -1,17 +1,136 @@
 #include "FloodSensor.h"
 
-void generateFloodData(uint8_t nodeId, unsigned long bootMillis, SensorPayload &payload) {
+#if defined(USE_MODBUS_SENSOR)
+// =========================================================================
+// Node 1: อ่านค่าจริงจากเซนเซอร์ DJLK-003AB ผ่าน ModbusManager
+// =========================================================================
+#include "ModbusManager.h"
+
+static uint16_t lastWaterLevelMm = 0;
+
+void initFloodSensor() {
+  initModbus();
+}
+
+bool readFloodSensor(uint8_t nodeId, unsigned long bootMillis, SensorPayload &payload) {
+  uint16_t waterLevelMm = 0;
+  bool success = readModbusWaterLevel(waterLevelMm);
+
+  if (success) {
+    lastWaterLevelMm = waterLevelMm;
+  }
+  uint16_t useMm = (lastWaterLevelMm > 0) ? lastWaterLevelMm : waterLevelMm;
+
+  payload.waterLevelCm = useMm / 10;
+  payload.waterPercent = constrain(map(payload.waterLevelCm, 0, 300, 0, 100), 0, 100);
+
+  if (payload.waterLevelCm >= 200) {
+    payload.floodStatus = FLOOD_CRITICAL;
+  } else if (payload.waterLevelCm >= 100) {
+    payload.floodStatus = FLOOD_WARNING;
+  } else {
+    payload.floodStatus = FLOOD_NORMAL;
+  }
+
+  uint16_t rawAdc = analogRead(A9);
+  payload.batteryMilliVolt = (uint16_t)(rawAdc * 2 * 3.3 / 1024.0 * 1000.0);
+  payload.uptimeSec = (uint16_t)((millis() - bootMillis) / 1000);
+
+  return success;
+}
+
+#elif defined(USE_JSN_SR04T)
+// =========================================================================
+// Node 2: อ่านค่าจริงจากเซนเซอร์ JSN-SR04T ผ่าน JsnSr04tManager
+// =========================================================================
+#include "JsnSr04tManager.h"
+
+static uint16_t lastWaterLevelCm = 0;
+
+void initFloodSensor() {
+  initJsnSr04t();
+}
+
+bool readFloodSensor(uint8_t nodeId, unsigned long bootMillis, SensorPayload &payload) {
+  uint16_t measuredCm = 0;
+  bool success = readJsnSr04tWaterLevel(measuredCm);
+
+  if (success) {
+    lastWaterLevelCm = measuredCm;
+  }
+  uint16_t useCm = (lastWaterLevelCm > 0) ? lastWaterLevelCm : measuredCm;
+
+  payload.waterLevelCm = useCm;
+  payload.waterPercent = constrain(map(payload.waterLevelCm, 0, 300, 0, 100), 0, 100);
+
+  if (payload.waterLevelCm >= 200) {
+    payload.floodStatus = FLOOD_CRITICAL;
+  } else if (payload.waterLevelCm >= 100) {
+    payload.floodStatus = FLOOD_WARNING;
+  } else {
+    payload.floodStatus = FLOOD_NORMAL;
+  }
+
+  uint16_t rawAdc = analogRead(A9);
+  payload.batteryMilliVolt = (uint16_t)(rawAdc * 2 * 3.3 / 1024.0 * 1000.0);
+  payload.uptimeSec = (uint16_t)((millis() - bootMillis) / 1000);
+
+  return success;
+}
+
+#elif defined(USE_HC_SR04)
+// =========================================================================
+// Node 3: อ่านค่าจริงจากเซนเซอร์ HC-SR04 ผ่าน HcSr04Manager
+// =========================================================================
+#include "HcSr04Manager.h"
+
+static uint16_t lastWaterLevelCm = 0;
+
+void initFloodSensor() {
+  initHcSr04();
+}
+
+bool readFloodSensor(uint8_t nodeId, unsigned long bootMillis, SensorPayload &payload) {
+  uint16_t measuredCm = 0;
+  bool success = readHcSr04WaterLevel(measuredCm);
+
+  if (success) {
+    lastWaterLevelCm = measuredCm;
+  }
+  uint16_t useCm = (lastWaterLevelCm > 0) ? lastWaterLevelCm : measuredCm;
+
+  payload.waterLevelCm = useCm;
+  payload.waterPercent = constrain(map(payload.waterLevelCm, 0, 300, 0, 100), 0, 100);
+
+  if (payload.waterLevelCm >= 200) {
+    payload.floodStatus = FLOOD_CRITICAL;
+  } else if (payload.waterLevelCm >= 100) {
+    payload.floodStatus = FLOOD_WARNING;
+  } else {
+    payload.floodStatus = FLOOD_NORMAL;
+  }
+
+  uint16_t rawAdc = analogRead(A9);
+  payload.batteryMilliVolt = (uint16_t)(rawAdc * 2 * 3.3 / 1024.0 * 1000.0);
+  payload.uptimeSec = (uint16_t)((millis() - bootMillis) / 1000);
+
+  return success;
+}
+
+#else
+// =========================================================================
+// Fallback: ข้อมูลจำลอง
+// =========================================================================
+
+bool readFloodSensor(uint8_t nodeId, unsigned long bootMillis, SensorPayload &payload) {
   unsigned long now = millis();
   float t = (now - bootMillis) / 1000.0;
 
   if (nodeId == NODE_ID_1) {
-    // Node 1: ระดับน้ำปกติ (35 - 75 cm)
     payload.waterLevelCm = (uint16_t)(55.0 + 20.0 * sin(t / 25.0));
   } else if (nodeId == NODE_ID_2) {
-    // Node 2: เฝ้าระวัง (120 - 170 cm)
     payload.waterLevelCm = (uint16_t)(145.0 + 25.0 * sin(t / 18.0));
   } else {
-    // Node 3: วิกฤตน้ำท่วม (215 - 280 cm)
     payload.waterLevelCm = (uint16_t)(245.0 + 35.0 * sin(t / 12.0));
   }
 
@@ -29,4 +148,8 @@ void generateFloodData(uint8_t nodeId, unsigned long bootMillis, SensorPayload &
   if (payload.batteryMilliVolt < 3500) payload.batteryMilliVolt = 3500;
 
   payload.uptimeSec = (uint16_t)((now - bootMillis) / 1000);
+
+  return true;
 }
+
+#endif
