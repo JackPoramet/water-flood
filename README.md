@@ -8,6 +8,8 @@
 
 | วันที่ | ส่วนที่แก้ไข | รายละเอียดการปรับปรุง |
 |---|---|---|
+| 2026-08-22 | `RX_Master` | **ปรับปรุงตำแหน่งพิกัด OLED (SSD1306) สำหรับจอสองสี (Dual-Color Yellow/Blue 128x64):**<br>1. จัดส่วน Header บาร์บนสุดให้อยู่ในแถบสีเหลืองเต็มพื้นที่ (`y = 0..14`)<br>2. ย้ายบรรทัด IP Address ลงมาอยู่ที่ `y = 19` ให้อยู่ในแถบสีน้ำเงินเต็มตัว ไม่ทับรอยต่อสี (Color Split Gap `y = 15..17`)<br>3. จัดระเบียบบรรทัด Node 1 (`y = 32`), Node 2 (`y = 44`) และสถานะระบบล่างสุด (`y = 56`) สวยงาม คมชัด ไม่แตกขอบ<br>4. **ไฟล์ที่เกี่ยวข้อง:** `DisplayManager.cpp`, `README.md` |
+| 2026-08-22 | `TX_Node` (Node 2) | **แก้ไขปัญหา Pin Conflict ของ MCU LoRa32u4 (ATmega32U4) สำหรับ Ultrasonic Sensor:**<br>1. รวมพินมาตรฐานของ Node 2 ทั้ง `JSN-SR04T` และ `HC-SR04` ให้ใช้ **`TRIG = D10`** และ **`ECHO = D11`** ร่วมกัน 100% สลับเซนเซอร์ได้โดยไม่ต้องย้ายสาย<br>2. ยกเลิกการใช้พิน **D9** (ซึ่งต่อกับวงจรแบ่งแรงดันแบตเตอรี่ LiPo) และ **D5** (ซึ่งต่อกับ LoRa DIO1 ภายในบอร์ด)<br>3. ปรับปรุงโมดูล `JsnSr04tManager.cpp` และ `HcSr04Manager.cpp` ให้ยิงพัลส์และตรวจจับระยะทางอย่างแม่นยำ<br>4. **ไฟล์ที่เกี่ยวข้อง:** `Config.h`, `JsnSr04tManager.cpp`, `HcSr04Manager.cpp`, `README.md` |
 | 2026-08-22 | `RX_Master` | **เพิ่มระบบปรับตั้งค่าเกณฑ์ระดับน้ำเตือนภัย (Warning / Critical Threshold) บันทึกลง Flash NVS / EEPROM:**<br>1. พัฒนาโมดูล `SettingsManager` ใช้ `<Preferences.h>` บันทึกค่าระดับน้ำเฝ้าระวัง (`warnThresholdCm`) และระดับน้ำวิกฤต (`critThresholdCm`) ลง Flash Memory ถาวร<br>2. เพิ่มกล่องตั้งค่าเกณฑ์ระดับน้ำบนหน้าเว็บ Web Dashboard ปรับแต่งแยกตาม Node พร้อมปุ่มบันทึกและแสดง Toast ทันที<br>3. เพิ่ม REST API `POST /api/settings` และอัปเดต `GET /api/data` ให้ส่งค่า Thresholds กลับไปแสดงผล<br>4. ปรับตรรกะใน `LoRaEngine.cpp` ให้ประเมินสถานะ Normal / Warning / Critical และแจ้งเตือน Telegram อิงตามเกณฑ์ที่ผู้ใช้กำหนดบน Master<br>5. **ไฟล์ที่เกี่ยวข้อง:** `Config.h`, `SystemState.h`, `SettingsManager.h/cpp`, `LoRaEngine.cpp`, `WebPortal.cpp`, `WebDashboard.h`, `main.cpp` |
 | 2026-08-22 | ทั้งโปรเจกต์ | **ปรับโครงสร้างระบบ LoRa Multi-Node จาก 3 โหนดเหลือ 2 โหนด (`PROTOCOL_MAX_NODES = 2`):**<br>1. **Master (ESP32-S3):** ปรับรอบ Polling ให้ตรวจเช็ค 2 โหนด (Node 1, Node 2) และแสดงผลบน Web Dashboard และ OLED 2 บรรทัด<br>2. **Node 2 (LoRa32u4):** รองรับทั้ง `env:node2` (JSN-SR04T) และ `env:node3` (HC-SR04) โดยทั้งสองโปรไฟล์ใช้ `NODE_ID = 2` ทำให้สามารถเลือกเปลี่ยนชนิดเซนเซอร์บนบอร์ดที่ 2 ได้ทันที<br>3. **ไฟล์ที่เกี่ยวข้อง:** `RX_Master/include/Protocol.h`, `TX_Node/include/Protocol.h`, `TX_Node/platformio.ini`, `RX_Master/src/main.cpp`, `WebPortal.cpp` |
 | 2026-08-21 | `RX_Master` | **เพิ่มระบบแจ้งเตือนเข้า Telegram Group อัตโนมัติ (Telegram Bot API + FreeRTOS Async Queue):**<br>1. พัฒนาโมดูล `TelegramNotifier` บน Core 0 ส่งข้อความแบบ Non-blocking ไม่กระทบเวลา LoRa Polling<br>2. แจ้งเตือน 5 รูปแบบ: วิกฤตน้ำท่วม (🚨), เฝ้าระวัง (⚠️), น้ำลดสู่ปกติ (✅), โหนดขาดการเชื่อมต่อ (❌), และ Master บูตระบบสำเร็จ (🌊)<br>3. ระบบ Anti-Spam & Debounce: ส่งเตือนเฉพาะเมื่อสถานะเปลี่ยน (State Transition) พร้อมกำหนดรอบเตือนซ้ำทุก 30 นาที<br>4. เพิ่มปุ่ม "ทดสอบแจ้งเตือน Telegram" และ REST API `/api/telegram/test` บนหน้า Dashboard<br>5. **ไฟล์ที่เกี่ยวข้อง:** `Config.h`, `SystemState.h`, `TelegramNotifier.h/cpp`, `LoRaEngine.cpp`, `WebPortal.cpp`, `WebDashboard.h`, `main.cpp` |
@@ -189,27 +191,25 @@ water_flood/
 
 ---
 
-### 4. เซนเซอร์ JSN-SR04T ↔ LoRa32u4 (Node 2 — เซนเซอร์ Ultrasonic กันน้ำ)
-| ขา JSN-SR04T | ขา LoRa32u4 | หมายเหตุ |
+### 4. เซนเซอร์ Ultrasonic (JSN-SR04T / HC-SR04) ↔ LoRa32u4 (Node 2)
+> 💡 **มาตรฐานพินร่วม (Unified Pinout):** ทั้ง `JSN-SR04T` และ `HC-SR04` ใช้ตำแหน่งขาเดียวกัน 100% ทำให้สามารถสลับเปลี่ยนเซนเซอร์ได้ทันทีโดยไม่ต้องย้ายสายไฟ
+
+| ขา Ultrasonic Sensor | ขา LoRa32u4 | หน้าที่ / คำอธิบาย |
 |---|---|---|
-| **TRIG** (Trigger) | **D12** | สัญญาณ Pulse เริ่มยิงคลื่น |
-| **ECHO** (Echo) | **D5** | สัญญาณ Pulse สะท้อนกลับ (pulseIn) |
-| **VCC** | **5V / USB** | ⚠️ ต้องใช้ไฟ 5V เท่านั้น |
+| **TRIG** (Trigger) | **D10** | สัญญาณ Pulse เริ่มยิงคลื่น (Output) |
+| **ECHO** (Echo) | **D11** | สัญญาณ Pulse สะท้อนกลับ (Input - pulseIn) |
+| **VCC** | **5V / USB** | ⚠️ ต้องใช้ไฟเลี้ยง 5V (ต่อจากขา 5V หรือ USB ของบอร์ด) |
 | **GND** | **GND** | กราวด์ร่วม |
 
-> **หมายเหตุ:** JSN-SR04T มีพิสัยวัด 20 cm – 600 cm (Dead zone < 20 cm)
-
----
-
-### 5. เซนเซอร์ HC-SR04 ↔ LoRa32u4 (Node 3 — เซนเซอร์ Ultrasonic ทั่วไป)
-| ขา HC-SR04 | ขา LoRa32u4 | หมายเหตุ |
-|---|---|---|
-| **TRIG** (Trigger) | **D10** | สัญญาณ Pulse เริ่มยิงคลื่น |
-| **ECHO** (Echo) | **D11** | สัญญาณ Pulse สะท้อนกลับ |
-| **VCC** | **5V** | ไฟเลี้ยงโมดูล (5V) |
-| **GND** | **GND** | กราวด์ร่วม |
-
-> **หมายเหตุ:** HC-SR04 มีพิสัยวัด 2 cm – 400 cm (ความแม่นยำสูงในระยะใกล้)
+> [!WARNING]
+> **ข้อควรระวังเรื่องขาพินบนบอร์ด LoRa32u4 (ATmega32U4):**
+> 1. **ห้ามใช้พิน D5:** เพราะถูกต่อวงจรภายในบอร์ดเข้ากับขา `DIO1` ของโมดูล LoRa SX1278
+> 2. **ห้ามใช้พิน D9:** เพราะถูกต่อเข้ากับวงจรแบ่งแรงดัน (Voltage Divider) สำหรับวัดไฟแบตเตอรี่ LiPo ทำให้สัญญาณ Pulse เสียรูป
+> 3. **ห้ามใช้พิน D4, D7, D8:** เพราะเป็นขาควบคุมของโมดูล LoRa (RST, DIO0, NSS/CS)
+> 4. **ห้ามใช้พิน D13:** เพราะเป็นขาต่อกับ LED แสดงผลบนบอร์ด
+> 5. **พิสัยการวัด:**
+>    - **JSN-SR04T (กันน้ำ):** วัดได้ระยะ 20 cm – 600 cm (มี Blind Zone 0 – 20 cm)
+>    - **HC-SR04 (ทั่วไป):** วัดได้ระยะ 2 cm – 400 cm (ความแม่นยำสูงในระยะใกล้)
 
 ---
 

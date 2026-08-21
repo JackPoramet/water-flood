@@ -16,20 +16,22 @@ void TaskOLEDDisplay(void *pvParameters) {
     animStep++;
     display.clearDisplay();
 
-    // --- Header ---
-    display.fillRect(0, 0, SCREEN_WIDTH, 11, SSD1306_WHITE);
+    // --- Header (Yellow Zone: y = 0..14) ---
+    display.fillRect(0, 0, SCREEN_WIDTH, 14, SSD1306_WHITE);
     display.setTextColor(SSD1306_BLACK);
     display.setTextSize(1);
-    display.setCursor(2, 2);
+    display.setCursor(2, 3);
     display.print(F("Flood Master RTOS"));
 
     const char animChar[] = {'-', '\\', '|', '/'};
-    display.setCursor(110, 2);
+    display.setCursor(106, 3);
     display.printf("%c#%d", animChar[animStep % 4], pollCycleCount % 100);
 
-    // --- IP Line ---
+    // --- Blue Zone (y = 18..63) ---
     display.setTextColor(SSD1306_WHITE);
-    display.setCursor(0, 13);
+
+    // Row 1: IP Address (y = 19..26 อยู่ในแถบสีน้ำเงินเต็มตัว ไม่ทับรอยต่อสี)
+    display.setCursor(0, 19);
     if (WiFi.status() == WL_CONNECTED) {
       display.print(F("IP:"));
       display.println(WiFi.localIP());
@@ -37,12 +39,12 @@ void TaskOLEDDisplay(void *pvParameters) {
       display.println(F("WiFi: Connecting..."));
     }
 
-    // --- Node Rows ---
+    // Row 2 & 3: Node Rows (Node 1 ที่ y=32, Node 2 ที่ y=44)
     const char* statusShort[] = {"OK", "WARN", "ALERT"};
 
     if (xSemaphoreTake(dataMutex, pdMS_TO_TICKS(50)) == pdTRUE) {
       for (int i = 0; i < PROTOCOL_MAX_NODES; i++) {
-        int y = 24 + (i * 13);
+        int y = 32 + (i * 12);
         display.setCursor(0, y);
 
         if (currentPollState == STATE_WAIT_RESPONSE && currentNodeIndex == i) {
@@ -63,6 +65,11 @@ void TaskOLEDDisplay(void *pvParameters) {
           display.print(F(" --cm [OFFLINE]"));
         }
       }
+
+      // Row 4: Status Footer (y = 56)
+      display.setCursor(0, 56);
+      display.printf("TG:%s | LoRa SF%d", (TELEGRAM_ENABLED ? "ON" : "OFF"), LORA_SF);
+
       xSemaphoreGive(dataMutex);
     }
 
