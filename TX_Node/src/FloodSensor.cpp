@@ -32,8 +32,7 @@ bool readFloodSensor(uint8_t nodeId, unsigned long bootMillis, SensorPayload &pa
     payload.floodStatus = FLOOD_NORMAL;
   }
 
-  uint16_t rawAdc = analogRead(A9);
-  payload.batteryMilliVolt = (uint16_t)(rawAdc * 2 * 3.3 / 1024.0 * 1000.0);
+  payload.batteryMilliVolt = 0;
   payload.uptimeSec = (uint16_t)((millis() - bootMillis) / 1000);
 
   return success;
@@ -71,8 +70,7 @@ bool readFloodSensor(uint8_t nodeId, unsigned long bootMillis, SensorPayload &pa
     payload.floodStatus = FLOOD_NORMAL;
   }
 
-  uint16_t rawAdc = analogRead(A9);
-  payload.batteryMilliVolt = (uint16_t)(rawAdc * 2 * 3.3 / 1024.0 * 1000.0);
+  payload.batteryMilliVolt = 0;
   payload.uptimeSec = (uint16_t)((millis() - bootMillis) / 1000);
 
   return success;
@@ -110,8 +108,7 @@ bool readFloodSensor(uint8_t nodeId, unsigned long bootMillis, SensorPayload &pa
     payload.floodStatus = FLOOD_NORMAL;
   }
 
-  uint16_t rawAdc = analogRead(A9);
-  payload.batteryMilliVolt = (uint16_t)(rawAdc * 2 * 3.3 / 1024.0 * 1000.0);
+  payload.batteryMilliVolt = 0;
   payload.uptimeSec = (uint16_t)((millis() - bootMillis) / 1000);
 
   return success;
@@ -144,9 +141,7 @@ bool readFloodSensor(uint8_t nodeId, unsigned long bootMillis, SensorPayload &pa
     payload.floodStatus = FLOOD_NORMAL;
   }
 
-  payload.batteryMilliVolt = (uint16_t)(4050 - (t / 120.0));
-  if (payload.batteryMilliVolt < 3500) payload.batteryMilliVolt = 3500;
-
+  payload.batteryMilliVolt = 0;
   payload.uptimeSec = (uint16_t)((now - bootMillis) / 1000);
 
   return true;

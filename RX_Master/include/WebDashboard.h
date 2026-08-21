@@ -84,10 +84,10 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
     .status-critical { background: #fef2f2; color: var(--danger); border: 1px solid #fecaca; }
     .status-offline { background: #f1f5f9; color: var(--text-muted); border: 1px solid #e2e8f0; }
     
-    .metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
-    .metric-box { background: #f8fafc; padding: 10px 14px; border-radius: 8px; border: 1px solid #f1f5f9; }
-    .metric-val { font-size: 1.4rem; font-weight: 700; color: var(--text); }
-    .metric-lbl { font-size: 0.75rem; color: var(--text-muted); margin-top: 1px; }
+    .metrics { margin-bottom: 12px; }
+    .metric-box { background: #f8fafc; padding: 12px 16px; border-radius: 8px; border: 1px solid #f1f5f9; }
+    .metric-val { font-size: 1.6rem; font-weight: 700; color: var(--text); }
+    .metric-lbl { font-size: 0.8rem; color: var(--text-muted); margin-top: 2px; }
     
     .progress-bar-bg {
       background: #e2e8f0;
@@ -197,10 +197,6 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
             <div class="metric-box">
               <div class="metric-val" style="color: ${barColor}">${node.online ? node.waterLevelCm : '-'} <span style="font-size:0.85rem; font-weight:normal; color:var(--text-muted)">cm</span></div>
               <div class="metric-lbl">ระดับความสูงน้ำ</div>
-            </div>
-            <div class="metric-box">
-              <div class="metric-val">${node.online ? (node.batteryMv / 1000).toFixed(2) : '-'} <span style="font-size:0.85rem; font-weight:normal; color:var(--text-muted)">V</span></div>
-              <div class="metric-lbl">แรงดันแบตเตอรี่</div>
             </div>
           </div>
           <div class="progress-bar-bg">

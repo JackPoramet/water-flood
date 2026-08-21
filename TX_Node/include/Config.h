@@ -22,7 +22,7 @@ const uint8_t MY_NODE_ID = NODE_ID;
 #define PIN_LED             13
 
 // =========================================================================
-// 3. การตั้งค่าคลื่นวิทยุ LoRa เพื่อระยะทางไกลสูงสุด (Maximum Long-Range Profile)
+// 3. การตั้งค่าคลื่นวิทยุ LoRa เพื่อระยะทางไกลสูงสุด (Maximum Long-Range Profile: SF12)
 // =========================================================================
 #define LORA_BAND           433E6   // 433.0 MHz
 #define LORA_SF             12      // Spreading Factor 12 (ความไวภาครับสูงสุด ส่งได้ไกลที่สุด ทะลุสิ่งกีดขวาง)
@@ -32,7 +32,7 @@ const uint8_t MY_NODE_ID = NODE_ID;
 #define LORA_TX_POWER       20      // กำลังส่งสูงสุด 20 dBm (100mW PA_BOOST)
 
 // =========================================================================
-// 4. พารามิเตอร์ Timing สำหรับการตอบกลับโหมดระยะไกล
+// 4. พารามิเตอร์ Timing สำหรับการตอบกลับโหมดระยะไกล SF12
 // =========================================================================
 #define TURNAROUND_DELAY_MS 100     // หน่วงเวลา 100ms เพื่อให้ Master เข้าสู่โหมด RX สมบูรณ์ก่อนส่งคลื่น SF12
 
@@ -46,16 +46,17 @@ const uint8_t MY_NODE_ID = NODE_ID;
   #define MODBUS_SLAVE_ID       1       // Slave Address ของ DJLK-003AB (ค่าเริ่มต้น)
   #define MODBUS_BAUD_RATE      9600    // Baud Rate: 9600, 8N1
   #define MODBUS_REG_ADDR       0x0100  // Register Address สำหรับค่าระยะทาง (mm)
-  #define SENSOR_READ_INTERVAL_MS 2000  // อ่านค่าจากเซนเซอร์ทุก 2 วินาที
+  #define SENSOR_READ_INTERVAL_MS 1000  // อ่านค่าจากเซนเซอร์ทุก 1 วินาที
 #endif
 
 // =========================================================================
 // 6. Pin Definitions สำหรับ JSN-SR04T Ultrasonic Sensor (Node 2)
+//    หมายเหตุ: D5 ใช้ไม่ได้ เพราะต่อตรงกับ LoRa DIO1 บนบอร์ด LoRa32u4
 // =========================================================================
 #ifdef USE_JSN_SR04T
-  #define PIN_JSN_TRIG          10      // Trigger Pin (D10)
-  #define PIN_JSN_ECHO          11      // Echo Pin (D11)
-  #define SENSOR_READ_INTERVAL_MS 1500  // อ่านค่าจากเซนเซอร์ทุก 1.5 วินาที
+  #define PIN_JSN_TRIG          9       // Trigger Pin (D9)
+  #define PIN_JSN_ECHO          12      // Echo Pin (D12)
+  #define SENSOR_READ_INTERVAL_MS 1000  // อ่านค่าจากเซนเซอร์ทุก 1 วินาที
 #endif
 
 // =========================================================================

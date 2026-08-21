@@ -8,6 +8,11 @@
 
 | วันที่ | ส่วนที่แก้ไข | รายละเอียดการปรับปรุง |
 |---|---|---|
+| 2026-08-21 | `RX_Master` & `TX_Node` | **ปรับแต่ง Spreading Factor กลับมาเป็น SF12 (Maximum Long-Range Profile):**<br>1. ปรับ `LORA_SF = 12` ทั้งฝั่ง Master และ Node (ความไวภาครับสูงสุด -148dBm ส่งได้ระยะทางไกลสูงสุด ทะลุสิ่งกีดขวาง)<br>2. ปรับ `POLL_TIMEOUT_MS = 3500` และ `CYCLE_INTERVAL_MS = 2000` เพื่อรองรับ Airtime ของ SF12 อย่างสมบูรณ์<br>3. ปรับ `TURNAROUND_DELAY_MS = 100` บน Node |
+| 2026-08-21 | `TX_Node` (ทุก Node) | **ปรับความถี่การอ่านค่าเซนเซอร์ทุกตัวเป็น 1 วินาที (`SENSOR_READ_INTERVAL_MS = 1000`):**<br>1. Node 1 (DJLK-003AB Modbus RTU): อ่านทุก 1 วินาที<br>2. Node 2 (JSN-SR04T Waterproof Ultrasonic): อ่านทุก 1 วินาที<br>3. Node 3 (HC-SR04 Ultrasonic): อ่านทุก 1 วินาที |
+| 2026-08-21 | `RX_Master` & `TX_Node` | **ปรับแต่ง Spreading Factor เป็น SF8 (Fast & Balanced Profile):**<br>1. ปรับ `LORA_SF = 8` ทั้งฝั่ง Master และ Node (ลดเวลา Airtime รับส่งข้อมูลเหลือเพียง ~50-80ms ต่อแพ็กเกจ)<br>2. ปรับลด `POLL_TIMEOUT_MS` เหลือ 1.2 วินาที และ `CYCLE_INTERVAL_MS` เหลือ 1.0 วินาที เพิ่มความเร็วการ Polling ตอบสนองแบบ Real-time<br>3. ปรับลด `TURNAROUND_DELAY_MS` บน Node เหลือ 50ms |
+| 2026-08-21 | `RX_Master` & `TX_Node` | **ตัดส่วนตรวจเช็คแรงดันแบตเตอรี่ (Battery Voltage) ออก:**<br>1. ตัดการอ่านค่า ADC A9 ใน `FloodSensor.cpp` และตัดการแสดงผลแรงดันแบตเตอรี่ในหน้าเว็บ Dashboard (`WebDashboard.h`)<br>2. ปรับการแสดงผลหน้าเว็บให้เป็นการ์ดระดับความสูงน้ำแบบเต็มความกว้าง (Clean Full-Width Metric)<br>3. ปรับ Serial log ของโหนดไม่ให้แสดงค่าแรงดันแบตเตอรี่ |
+| 2026-08-20 | `TX_Node` (`env:node1`) | **เปลี่ยนเป็น ModbusMaster Library + Hardware UART Serial1:**<br>1. ย้ายสาย RO→Pin 0 (RX1), DI→Pin 1 (TX1) เพื่อใช้ Hardware UART แทน Bit-Bang<br>2. ใช้ `ModbusMaster` library (4-20ma v2.0.1) + Callback DE/RE สำหรับ Half-Duplex<br>3. อ่านค่า Register 0x0101 (Real-time 100ms) และ 0x0100 (Processed 500ms)<br>4. RE→Pin 6, DE→Pin 9 ยังคงเดิม | `platformio.ini`, `Config.h`, `HcSr04Manager.h/cpp`, `FloodSensor.h/cpp`, `main.cpp` |
 | 2026-08-21 | `TX_Node` (env:node3) | **เพิ่มเซนเซอร์อัลตร้าโซนิค HC-SR04:**<br>1. พัฒนาโมดูล `HcSr04Manager` (Trig=D10, Echo=D11) คำนวณระยะทาง PulseIn พร้อมระบบ Auto-Retry<br>2. รองรับสลับโหมดผ่าน Conditional Flag (`USE_HC_SR04`)<br>3. **ไฟล์ที่เกี่ยวข้อง:** `platformio.ini`, `Config.h`, `HcSr04Manager.h/cpp`, `FloodSensor.h/cpp`, `main.cpp` |
 | 2026-08-21 | `TX_Node` (env:node2) | **เพิ่มเซนเซอร์อัลตร้าโซนิคกันน้ำ JSN-SR04T:**<br>1. พัฒนาโมดูล `JsnSr04tManager` (Trig=D10, Echo=D11) คำนวณระยะทางจากสัญญาณสะท้อน PulseIn พร้อมระบบ Auto-Retry<br>2. รองรับสลับโหมดผ่าน Conditional Flag (`USE_JSN_SR04T`)<br>3. **ไฟล์ที่เกี่ยวข้อง:** `platformio.ini`, `Config.h`, `JsnSr04tManager.h/cpp`, `FloodSensor.h/cpp`, `main.cpp` |
 | 2026-08-21 | `TX_Node` (env:node1) | **เพิ่มเซนเซอร์ DJLK-003AB (RS485 Modbus RTU):**<br>1. เปลี่ยน Node 1 จากข้อมูลจำลองเป็นอ่านค่าจริงจากเซนเซอร์ Ultrasonic DJLK-003AB ผ่าน MAX485<br>2. ใช้ `ModbusMaster` library + `Serial1` (Hardware UART) อ่าน Register `0x0100` ได้ค่าระยะทาง (mm)<br>3. ใช้ Conditional Compile (`USE_MODBUS_SENSOR`) เฉพาะ env:node1, Node 2/3 ยังใช้ข้อมูลจำลอง<br>4. **ไฟล์ที่แก้ไข:** `platformio.ini`, `Config.h`, `FloodSensor.h`, `FloodSensor.cpp`, `main.cpp` |
@@ -137,9 +142,9 @@ water_flood/
 ### 4. เซนเซอร์ JSN-SR04T ↔ LoRa32u4 (Node 2 — เซนเซอร์ Ultrasonic กันน้ำ)
 | ขา JSN-SR04T | ขา LoRa32u4 | หมายเหตุ |
 |---|---|---|
-| **TRIG** (Trigger) | **D10** | สัญญาณ Pulse เริ่มยิงคลื่น |
-| **ECHO** (Echo) | **D11** | สัญญาณ Pulse สะท้อนกลับ |
-| **5V / VCC** | **5V** | ไฟเลี้ยงโมดูล (5V) |
+| **TRIG** (Trigger) | **D12** | สัญญาณ Pulse เริ่มยิงคลื่น |
+| **ECHO** (Echo) | **D5** | สัญญาณ Pulse สะท้อนกลับ (pulseIn) |
+| **VCC** | **5V / USB** | ⚠️ ต้องใช้ไฟ 5V เท่านั้น |
 | **GND** | **GND** | กราวด์ร่วม |
 
 > **หมายเหตุ:** JSN-SR04T มีพิสัยวัด 20 cm – 600 cm (Dead zone < 20 cm)

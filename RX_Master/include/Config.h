@@ -23,10 +23,10 @@
 #define LORA_DIO0           -1   // ไม่ต้องต่อ (ใช้ Polling)
 
 // =========================================================================
-// 2. การตั้งค่าคลื่นวิทยุ LoRa เพื่อระยะทางไกลสูงสุด (Maximum Long-Range Profile)
+// 2. การตั้งค่าคลื่นวิทยุ LoRa เพื่อระยะทางไกลสูงสุด (Maximum Long-Range Profile: SF12)
 // =========================================================================
 #define LORA_BAND           433E6 // 433.0 MHz
-#define LORA_SF             12    // Spreading Factor 12 (ความไวภาครับสูงสุด -148dBm ส่งได้ไกลที่สุด)
+#define LORA_SF             12    // Spreading Factor 12 (ความไวภาครับสูงสุด -148dBm ส่งได้ไกลที่สุด ทะลุสิ่งกีดขวาง)
 #define LORA_BW             125E3 // Bandwidth 125 kHz
 #define LORA_CR             8     // Coding Rate 4/8 (แก้ไขข้อผิดพลาดของสัญญาณสูงสุด)
 #define LORA_SYNC_WORD      0x12  // Sync Word เครือข่ายเฉพาะกลุ่ม
@@ -39,7 +39,7 @@ extern const char* WIFI_SSID;
 extern const char* WIFI_PASS;
 
 // =========================================================================
-// 4. พารามิเตอร์ระบบ LoRa Polling สำหรับโหมดระยะไกล (Long-Range Timing)
+// 4. พารามิเตอร์ระบบ LoRa Polling สำหรับ SF12
 // =========================================================================
 #define POLL_TIMEOUT_MS     3500  // เวลารอการตอบกลับ 3.5 วินาที (ครอบคลุม Airtime ของ SF12 อย่างสมบูรณ์)
 #define CYCLE_INTERVAL_MS   2000  // เว้นระยะระหว่างรอบ Polling 2.0 วินาที

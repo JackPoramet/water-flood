@@ -8,7 +8,7 @@
 // =========================================================================
 // 1. การตั้งค่าข้อมูล WiFi และตัวแปรระบบส่วนกลาง
 // =========================================================================
-const char* WIFI_SSID = "CoE#01";     // ชื่อ WiFi ของท่าน
+const char* WIFI_SSID = "SnackJack";     // ชื่อ WiFi ของท่าน
 const char* WIFI_PASS = "xxxxxxxx"; // รหัสผ่าน WiFi
 
 SemaphoreHandle_t dataMutex = NULL;
