@@ -19,6 +19,11 @@ struct NodeInfo {
   unsigned long lastSeenMillis;
   uint32_t packetsReceived;
   uint32_t timeoutCount;
+  uint8_t prevFloodStatus;     // สถานะก่อนหน้า (สำหรับตรวจจับ State Transition)
+  bool prevOnline;             // สถานะออนไลน์ก่อนหน้า
+  unsigned long lastAlertMillis; // เวลาที่ส่งเตือนครั้งล่าสุด (สำหรับ Cooldown)
+  uint16_t warnThresholdCm;    // ระดับน้ำเฝ้าระวัง (cm)
+  uint16_t critThresholdCm;    // ระดับน้ำวิกฤต (cm)
 };
 
 // สถานะการทำงานของ Polling State Machine

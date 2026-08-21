@@ -5,6 +5,8 @@
 #include "Config.h"
 #include "SystemState.h"
 #include "WebDashboard.h"
+#include "TelegramNotifier.h"
+#include "SettingsManager.h"
 
 static WebServer server(80);
 
@@ -21,6 +23,7 @@ static void handleApiData() {
     json += "\"wifiSsid\":\"" + String(WiFi.SSID()) + "\",";
     json += "\"wifiIp\":\"" + WiFi.localIP().toString() + "\",";
     json += "\"wifiRssi\":" + String(WiFi.RSSI()) + ",";
+    json += "\"telegramEnabled\":" + String(TELEGRAM_ENABLED ? "true" : "false") + ",";
     
     bool anyCritical = false;
     uint16_t maxLevel = 0;
@@ -40,6 +43,8 @@ static void handleApiData() {
       json += "\"waterLevelCm\":" + String(nodes[i].waterLevelCm) + ",";
       json += "\"waterPercent\":" + String(nodes[i].waterPercent) + ",";
       json += "\"floodStatus\":" + String(nodes[i].floodStatus) + ",";
+      json += "\"warnThresholdCm\":" + String(nodes[i].warnThresholdCm) + ",";
+      json += "\"critThresholdCm\":" + String(nodes[i].critThresholdCm) + ",";
       json += "\"batteryMv\":" + String(nodes[i].batteryMilliVolt) + ",";
       json += "\"uptimeSec\":" + String(nodes[i].uptimeSec) + ",";
       json += "\"rssi\":" + String(nodes[i].rssi) + ",";
@@ -64,6 +69,52 @@ static void handleApiPollNow() {
   server.send(200, "application/json", "{\"status\":\"ok\",\"msg\":\"Polling triggered\"}");
 }
 
+static void handleApiSaveSettings() {
+  if (server.hasArg("nodeId") && server.hasArg("warnCm") && server.hasArg("critCm")) {
+    uint8_t nodeId = server.arg("nodeId").toInt();
+    uint16_t warnCm = server.arg("warnCm").toInt();
+    uint16_t critCm = server.arg("critCm").toInt();
+
+    int targetIdx = -1;
+    for (int i = 0; i < PROTOCOL_MAX_NODES; i++) {
+      if (nodes[i].id == nodeId) {
+        targetIdx = i;
+        break;
+      }
+    }
+
+    if (targetIdx >= 0 && warnCm > 0 && critCm > warnCm) {
+      if (saveNodeThresholds(targetIdx, warnCm, critCm)) {
+        server.send(200, "application/json", "{\"status\":\"ok\",\"msg\":\"บันทึกเกณฑ์ระดับน้ำสำเร็จ\"}");
+        return;
+      }
+    }
+  }
+  server.send(400, "application/json", "{\"status\":\"error\",\"msg\":\"พารามิเตอร์ไม่ถูกต้อง (ต้องให้ วิกฤต > เฝ้าระวัง > 0)\"}");
+}
+
+static void handleApiTelegramTest() {
+  if (!TELEGRAM_ENABLED) {
+    server.send(400, "application/json", "{\"status\":\"error\",\"msg\":\"Telegram is disabled in Config.h\"}");
+    return;
+  }
+  if (strlen(TELEGRAM_BOT_TOKEN) == 0 || strlen(TELEGRAM_CHAT_ID) == 0) {
+    server.send(400, "application/json", "{\"status\":\"error\",\"msg\":\"Telegram Bot Token or Chat ID is not set!\"}");
+    return;
+  }
+
+  String testMsg = "🧪 <b>[ทดสอบระบบแจ้งเตือน Telegram สำเร็จ]</b>\n";
+  testMsg += "ESP32-S3 Master สามารถส่งข้อความเข้ากลุ่ม Telegram ได้อย่างสมบูรณ์!\n";
+  testMsg += "⏱ <b>Uptime:</b> " + String(millis() / 1000) + " วินาที\n";
+  testMsg += "📶 <b>WiFi:</b> " + String(WiFi.SSID()) + " (" + WiFi.localIP().toString() + ")";
+
+  if (queueTelegramMessage(testMsg)) {
+    server.send(200, "application/json", "{\"status\":\"ok\",\"msg\":\"Telegram test notification queued!\"}");
+  } else {
+    server.send(500, "application/json", "{\"status\":\"error\",\"msg\":\"Failed to queue test message\"}");
+  }
+}
+
 void TaskWebServer(void *pvParameters) {
   Serial.println(F("[FreeRTOS] Web Server Task started on Core 0"));
 
@@ -80,6 +131,9 @@ void TaskWebServer(void *pvParameters) {
   server.on("/", HTTP_GET, handleRoot);
   server.on("/api/data", HTTP_GET, handleApiData);
   server.on("/api/poll", HTTP_POST, handleApiPollNow);
+  server.on("/api/settings", HTTP_POST, handleApiSaveSettings);
+  server.on("/api/telegram/test", HTTP_POST, handleApiTelegramTest);
+  server.on("/api/telegram/test", HTTP_GET, handleApiTelegramTest);
   server.begin();
   Serial.println(F("[HTTP] Web Server Started on Port 80!"));
 
@@ -95,8 +149,17 @@ void TaskWebServer(void *pvParameters) {
     Serial.printf ("   -> http://%s\n", WiFi.localIP().toString().c_str());
     Serial.printf ("   -> http://floodmonitor.local\n");
     Serial.println(F("=================================================="));
+
+    // ส่งข้อความแจ้งเตือนเมื่อระบบเริ่มทำงาน (Boot Alert)
+    if (TELEGRAM_ALERT_BOOT && TELEGRAM_ENABLED) {
+      String bootMsg = "🌊 <b>[ระบบตรวจเช็คน้ำท่วม Master เริ่มต้นสำเร็จ]</b>\n";
+      bootMsg += "📡 <b>IP Address:</b> " + WiFi.localIP().toString() + "\n";
+      bootMsg += "📶 <b>WiFi:</b> " + String(WiFi.SSID()) + " (" + String(WiFi.RSSI()) + " dBm)\n";
+      bootMsg += "🚀 <b>สถานะ:</b> ระบบพร้อมรับสัญญาณ LoRa 2 โหนด";
+      queueTelegramMessage(bootMsg);
+    }
   } else {
-    Serial.println(F("[WiFi Station] Timeout! You can connect to 'FloodMonitor-AP' at http://192.168.4.1"));
+    Serial.println(F("[WiFi Station] Timeout! Cannot connect to WiFi."));
   }
 
   unsigned long lastReconnectCheck = 0;

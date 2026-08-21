@@ -8,13 +8,12 @@
 // =========================================================================
 
 #define PROTOCOL_MAGIC_BYTE   0xAA
-#define PROTOCOL_MAX_NODES    3
+#define PROTOCOL_MAX_NODES    2
 
 // Node IDs
 #define NODE_ID_MASTER        0x00
 #define NODE_ID_1             0x01
 #define NODE_ID_2             0x02
-#define NODE_ID_3             0x03
 #define NODE_ID_BROADCAST     0xFF
 
 // Message Types / Commands

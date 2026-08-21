@@ -45,4 +45,25 @@ extern const char* WIFI_PASS;
 #define CYCLE_INTERVAL_MS   2000  // เว้นระยะระหว่างรอบ Polling 2.0 วินาที
 #define MAX_RETRIES         2     // จำนวนครั้งที่ส่งซ้ำเมื่อ Node ไม่ตอบ
 
+// =========================================================================
+// 5. การตั้งค่าระบบแจ้งเตือน Telegram Group (Telegram Bot API)
+// =========================================================================
+#define TELEGRAM_ENABLED            true   // เปิด/ปิด การส่งแจ้งเตือน Telegram (true = เปิดใช้งาน)
+extern const char* TELEGRAM_BOT_TOKEN;     // Telegram Bot Token (ได้จาก @BotFather)
+extern const char* TELEGRAM_CHAT_ID;       // Group Chat ID (เช่น -100xxxxxxxxxx หรือ -xxxxxxxx)
+
+#define TELEGRAM_ALERT_BOOT         true   // แจ้งเตือนเมื่อ Master บูตและต่อ WiFi สำเร็จ
+#define TELEGRAM_ALERT_CRITICAL     true   // แจ้งเตือนเมื่อระดับน้ำเข้าสู่วิกฤต (สีแดง)
+#define TELEGRAM_ALERT_WARNING      true   // แจ้งเตือนเมื่อระดับน้ำเข้าสู่สภาวะเฝ้าระวัง (สีเหลือง)
+#define TELEGRAM_ALERT_RECOVERY     true   // แจ้งเตือนเมื่อระดับน้ำลดลงกลับสู่ปกติ (สีเขียว)
+#define TELEGRAM_ALERT_OFFLINE      true   // แจ้งเตือนเมื่อโหนดขาดการเชื่อมต่อ (Offline)
+#define TELEGRAM_ALERT_ONLINE       true   // แจ้งเตือนเมื่อโหนดกลับมาเชื่อมต่อได้ (Online)
+#define TELEGRAM_CRITICAL_REMIND_MS (30UL * 60UL * 1000UL) // เตือนซ้ำกรณีวิกฤตต่อเนื่องทุก 30 นาที
+
+// =========================================================================
+// 6. ค่าเริ่มต้นเกณฑ์ระดับน้ำเตือนภัย (Default Thresholds in cm)
+// =========================================================================
+#define DEFAULT_WARN_THRESHOLD_CM   100   // ค่าเริ่มต้นระดับน้ำเฝ้าระวัง (cm)
+#define DEFAULT_CRIT_THRESHOLD_CM   200   // ค่าเริ่มต้นระดับน้ำวิกฤต (cm)
+
 #endif // CONFIG_H

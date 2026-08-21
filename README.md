@@ -8,6 +8,9 @@
 
 | วันที่ | ส่วนที่แก้ไข | รายละเอียดการปรับปรุง |
 |---|---|---|
+| 2026-08-22 | `RX_Master` | **เพิ่มระบบปรับตั้งค่าเกณฑ์ระดับน้ำเตือนภัย (Warning / Critical Threshold) บันทึกลง Flash NVS / EEPROM:**<br>1. พัฒนาโมดูล `SettingsManager` ใช้ `<Preferences.h>` บันทึกค่าระดับน้ำเฝ้าระวัง (`warnThresholdCm`) และระดับน้ำวิกฤต (`critThresholdCm`) ลง Flash Memory ถาวร<br>2. เพิ่มกล่องตั้งค่าเกณฑ์ระดับน้ำบนหน้าเว็บ Web Dashboard ปรับแต่งแยกตาม Node พร้อมปุ่มบันทึกและแสดง Toast ทันที<br>3. เพิ่ม REST API `POST /api/settings` และอัปเดต `GET /api/data` ให้ส่งค่า Thresholds กลับไปแสดงผล<br>4. ปรับตรรกะใน `LoRaEngine.cpp` ให้ประเมินสถานะ Normal / Warning / Critical และแจ้งเตือน Telegram อิงตามเกณฑ์ที่ผู้ใช้กำหนดบน Master<br>5. **ไฟล์ที่เกี่ยวข้อง:** `Config.h`, `SystemState.h`, `SettingsManager.h/cpp`, `LoRaEngine.cpp`, `WebPortal.cpp`, `WebDashboard.h`, `main.cpp` |
+| 2026-08-22 | ทั้งโปรเจกต์ | **ปรับโครงสร้างระบบ LoRa Multi-Node จาก 3 โหนดเหลือ 2 โหนด (`PROTOCOL_MAX_NODES = 2`):**<br>1. **Master (ESP32-S3):** ปรับรอบ Polling ให้ตรวจเช็ค 2 โหนด (Node 1, Node 2) และแสดงผลบน Web Dashboard และ OLED 2 บรรทัด<br>2. **Node 2 (LoRa32u4):** รองรับทั้ง `env:node2` (JSN-SR04T) และ `env:node3` (HC-SR04) โดยทั้งสองโปรไฟล์ใช้ `NODE_ID = 2` ทำให้สามารถเลือกเปลี่ยนชนิดเซนเซอร์บนบอร์ดที่ 2 ได้ทันที<br>3. **ไฟล์ที่เกี่ยวข้อง:** `RX_Master/include/Protocol.h`, `TX_Node/include/Protocol.h`, `TX_Node/platformio.ini`, `RX_Master/src/main.cpp`, `WebPortal.cpp` |
+| 2026-08-21 | `RX_Master` | **เพิ่มระบบแจ้งเตือนเข้า Telegram Group อัตโนมัติ (Telegram Bot API + FreeRTOS Async Queue):**<br>1. พัฒนาโมดูล `TelegramNotifier` บน Core 0 ส่งข้อความแบบ Non-blocking ไม่กระทบเวลา LoRa Polling<br>2. แจ้งเตือน 5 รูปแบบ: วิกฤตน้ำท่วม (🚨), เฝ้าระวัง (⚠️), น้ำลดสู่ปกติ (✅), โหนดขาดการเชื่อมต่อ (❌), และ Master บูตระบบสำเร็จ (🌊)<br>3. ระบบ Anti-Spam & Debounce: ส่งเตือนเฉพาะเมื่อสถานะเปลี่ยน (State Transition) พร้อมกำหนดรอบเตือนซ้ำทุก 30 นาที<br>4. เพิ่มปุ่ม "ทดสอบแจ้งเตือน Telegram" และ REST API `/api/telegram/test` บนหน้า Dashboard<br>5. **ไฟล์ที่เกี่ยวข้อง:** `Config.h`, `SystemState.h`, `TelegramNotifier.h/cpp`, `LoRaEngine.cpp`, `WebPortal.cpp`, `WebDashboard.h`, `main.cpp` |
 | 2026-08-21 | `RX_Master` & `TX_Node` | **ปรับแต่ง Spreading Factor กลับมาเป็น SF12 (Maximum Long-Range Profile):**<br>1. ปรับ `LORA_SF = 12` ทั้งฝั่ง Master และ Node (ความไวภาครับสูงสุด -148dBm ส่งได้ระยะทางไกลสูงสุด ทะลุสิ่งกีดขวาง)<br>2. ปรับ `POLL_TIMEOUT_MS = 3500` และ `CYCLE_INTERVAL_MS = 2000` เพื่อรองรับ Airtime ของ SF12 อย่างสมบูรณ์<br>3. ปรับ `TURNAROUND_DELAY_MS = 100` บน Node |
 | 2026-08-21 | `TX_Node` (ทุก Node) | **ปรับความถี่การอ่านค่าเซนเซอร์ทุกตัวเป็น 1 วินาที (`SENSOR_READ_INTERVAL_MS = 1000`):**<br>1. Node 1 (DJLK-003AB Modbus RTU): อ่านทุก 1 วินาที<br>2. Node 2 (JSN-SR04T Waterproof Ultrasonic): อ่านทุก 1 วินาที<br>3. Node 3 (HC-SR04 Ultrasonic): อ่านทุก 1 วินาที |
 | 2026-08-21 | `RX_Master` & `TX_Node` | **ปรับแต่ง Spreading Factor เป็น SF8 (Fast & Balanced Profile):**<br>1. ปรับ `LORA_SF = 8` ทั้งฝั่ง Master และ Node (ลดเวลา Airtime รับส่งข้อมูลเหลือเพียง ~50-80ms ต่อแพ็กเกจ)<br>2. ปรับลด `POLL_TIMEOUT_MS` เหลือ 1.2 วินาที และ `CYCLE_INTERVAL_MS` เหลือ 1.0 วินาที เพิ่มความเร็วการ Polling ตอบสนองแบบ Real-time<br>3. ปรับลด `TURNAROUND_DELAY_MS` บน Node เหลือ 50ms |
@@ -28,7 +31,37 @@
 2. ดู IP Address ที่ปรากฏบน **หน้าจอ OLED** บรรทัดที่ 2 ของ ESP32-S3 (เช่น `IP: 192.168.1.150`)
 3. เปิดเว็บเบราว์เซอร์แล้วพิมพ์:
    $$\text{\bf http://<IP_ที่แสดงบนหน้าจอOLED>} \quad \text{(เช่น http://192.168.1.150)}$$
-4. หน้าจอจะแสดง Dashboard คลีนโทนสีขาว แสดงระดับน้ำ แบตเตอรี่ และสถานะเตือนภัยของทุก Node แบบ Real-time
+4. หน้าจอจะแสดง Dashboard คลีนโทนสีขาว แสดงระดับน้ำ และสถานะเตือนภัยของทุก Node แบบ Real-time พร้อมปุ่มทดสอบ Telegram
+
+---
+
+## 💬 วิธีตั้งค่าและเชื่อมต่อ Telegram Group (Telegram Bot Setup Guide)
+
+ระบบแจ้งเตือนเข้ากลุ่ม Telegram ทำงานผ่าน Telegram Bot API อัตโนมัติ โดยมีขั้นตอนการตั้งค่าดังนี้:
+
+### ขั้นตอนที่ 1: สร้าง Telegram Bot และรับ Token
+1. ค้นหาผู้ใช้ **`@BotFather`** ในแอป Telegram แล้วกด **Start**
+2. พิมพ์คำสั่ง `/newbot` เพื่อสร้างบอทใหม่
+3. ตั้งชื่อบอท (Display Name) เช่น `Water Flood Alert Bot`
+4. ตั้งชื่อ Username ของบอท โดยต้องลงท้ายด้วย `bot` เช่น `water_flood_alert_bot`
+5. เมื่อสร้างเสร็จ `@BotFather` จะให้ **HTTP API Token** (เช่น `8850291145:AAEhqiyjg8JvGca5jmiRVgu4NZjWyG_HgYo`) ให้คัดลอกเก็บไว้
+
+### ขั้นตอนที่ 2: สร้างกลุ่ม Telegram และดึง Group Chat ID
+1. สร้างกลุ่ม (Group) ใน Telegram หรือใช้กลุ่มเดิมที่มีอยู่
+2. เชิญบอทที่สร้างในขั้นตอนที่ 1 เข้ากลุ่มในฐานะสมาชิก
+3. ค้นหาบอท **`@raw_data_bot`** หรือ **`@userinfobot`** แล้วเชิญเข้ากลุ่มชั่วคราว บอทจะพิมพ์ข้อมูลกลุ่มออกมา ให้ดูช่อง `id` ในส่วน `chat` (Chat ID ของกลุ่มจะมีเครื่องหมายลบนำหน้าเสมอ เช่น `-5066717793` หรือ `-1005066717793`)
+4. เตะบอท `@raw_data_bot` ออกจากกลุ่ม
+
+### ขั้นตอนที่ 3: กำหนดค่าในโค้ด `RX_Master/src/main.cpp`
+```cpp
+// กำหนด Bot Token และ Chat ID ที่ได้รับ
+const char* TELEGRAM_BOT_TOKEN = "8850291145:AAEhqiyjg8JvGca5jmiRVgu4NZjWyG_HgYo";
+const char* TELEGRAM_CHAT_ID   = "-5066717793";
+```
+
+### ขั้นตอนที่ 4: ทดสอบการทำงาน
+- เปิดหน้าเว็บ Mobile Dashboard (`http://<IP_ESP32>`) แล้วกดปุ่ม **"ทดสอบแจ้งเตือน Telegram"**
+- บอทจะส่งข้อความแจ้งเตือนทดสอบเข้ากลุ่ม Telegram ทันที
 
 ---
 
@@ -40,16 +73,18 @@ water_flood/
 ├── AGENTS.md                      <-- กฎข้อบังคับการพัฒนาและบันทึกเอกสาร
 ├── water_flood.code-workspace     <-- ไฟล์ Workspace รวมโปรเจกต์ของ VS Code
 │
-├── RX_Master/                     <-- [ESP32-S3 Master + WebServer]
+├── RX_Master/                     <-- [ESP32-S3 Master + WebServer + Telegram]
 │   ├── include/
-│   │   ├── Config.h               <-- การตั้งค่า Pin, WiFi, RF และ Timing กลาง
+│   │   ├── Config.h               <-- การตั้งค่า Pin, WiFi, RF, Telegram และ Timing กลาง
 │   │   ├── Protocol.h             <-- โครงสร้าง Binary Frame, Header, CRC16
 │   │   ├── SystemState.h          <-- ตัวแปรสถานะส่วนกลาง, Mutex, โครงสร้าง Node
-│   │   ├── WebDashboard.h         <-- หน้าเว็บ Clean White Theme (No Emojis)
+│   │   ├── TelegramNotifier.h     <-- โมดูลจัดการคิวและข้อความแจ้งเตือน Telegram
+│   │   ├── WebDashboard.h         <-- หน้าเว็บ Clean White Theme พร้อมปุ่ม Telegram Test
 │   │   ├── WebPortal.h            <-- โมดูลจัดการ WiFi และ HTTP Server
 │   │   ├── LoRaEngine.h           <-- โมดูล LoRa Polling State Machine
 │   │   └── DisplayManager.h       <-- โมดูลจัดการหน้าจอ OLED SSD1306
 │   ├── src/
+│   │   ├── TelegramNotifier.cpp   <-- ระบบส่งแจ้งเตือน Telegram HTTPS TLS (Core 0)
 │   │   ├── WebPortal.cpp          <-- ซอร์สโค้ด Web Server Task (Core 0)
 │   │   ├── LoRaEngine.cpp         <-- ซอร์สโค้ด LoRa Polling Task (Core 1)
 │   │   ├── DisplayManager.cpp     <-- ซอร์สโค้ด OLED Display Task (Core 1)
@@ -78,20 +113,35 @@ water_flood/
 ## ⚡ สถาปัตยกรรม Dual-Core FreeRTOS
 
 ```
-+---------------------------------------------------------------------------------------+
-|                                ESP32-S3 Dual-Core SoC                                 |
-|                                                                                       |
-|   [ Core 0 ] - Networking & Web Engine           [ Core 1 ] - Radio & UI Engine       |
-|   +------------------------------------+         +--------------------------------+   |
-|   |  - WiFi Station Handler (WIFI_STA) |         |  - LoRa SX1278 Polling Engine  |   |
-|   |  - HTTP WebServer (Port 80)        |         |    (Node 1 -> Node 2 -> Node 3)|   |
-|   |  - REST API (/api/data, /api/poll) |         |  - CRC16 & Timeout Handler     |   |
-|   |                                    |         |  - I2C OLED (SSD1306 128x64)   |   |
-|   +-----------------+------------------+         +----------------+---------------+   |
-|                     |                                             |                   |
-|                     +-----------------> [ Mutex ] <---------------+                   |
-|                                    (Node Telemetry)                                   |
-+---------------------------------------------------------------------------------------+
++---------------------------------------------------------------------------------------------------+
+|                                      ESP32-S3 FreeRTOS System                                     |
+|                                                                                                   |
+|   [ Core 1 ] - Radio & UI Engine                     [ Core 0 ] - Networking & Notifications      |
+|   +-------------------------------+                  +----------------------------------------+   |
+|   |  - LoRa SX1278 Polling Engine |                  |  - WiFi Station (WIFI_STA)             |   |
+|   |  - CRC16 & Timeout Handler    |                  |  - HTTP WebServer (Port 80)            |   |
+|   |  - ตรวจจับ State Transition   |                  |  - REST API (/api/data, /api/poll,     |   |
+|   |    (Normal -> Warn -> Crit)   |                  |              /api/telegram/test)       |   |
+|   |  - I2C OLED (SSD1306 128x64)  |                  |  - mDNS Responder (floodmonitor.local) |   |
+|   +---------------+---------------+                  +-------------------+--------------------+   |
+|                   |                                                      |                        |
+|                   |  Enqueue Alert Msg                                   |  Enqueue Test Msg      |
+|                   +--------------------> [ FreeRTOS Queue ] <------------+                        |
+|                                         (telegramQueue: 10 msgs)                                  |
+|                                                      |                                            |
+|                                                      v Dequeue & Process                          |
+|                                      +--------------------------------+                           |
+|                                      |      TaskTelegram (Core 0)     |                           |
+|                                      |  - HTTPS Client (WiFiSecure)   |                           |
+|                                      |  - Anti-Spam / Rate Limiting   |                           |
+|                                      +---------------+----------------+                           |
++------------------------------------------------------|--------------------------------------------+
+                                                       |
+                                                       v HTTPS POST (TLS)
+                                        +------------------------------+
+                                        |   api.telegram.org / bot     |
+                                        |     Telegram Group Chat      |
+                                        +------------------------------+
 ```
 
 ---
@@ -172,18 +222,20 @@ pio run --target upload --upload-port COM12
 ```
 
 ### 2. อัปโหลดบอร์ด Node (LoRa32u4)
-- **สำหรับ Node 1 (คลองระบายน้ำ):**
+- **สำหรับ Node 1 (คลองระบายน้ำ — RS485 Modbus DJLK-003AB):**
   ```bash
   cd TX_Node
-  pio run -e node1 --target upload --upload-port COM22
+  pio run -e node1 --target upload --upload-port <COM_PORT>
   ```
-- **สำหรับ Node 2 (ริมแม่น้ำเฝ้าระวัง):**
+- **สำหรับ Node 2 (ริมแม่น้ำเฝ้าระวัง — กรณีใช้เซนเซอร์กันน้ำ JSN-SR04T):**
   ```bash
   cd TX_Node
-  pio run -e node2 --target upload --upload-port COM22
+  pio run -e node2 --target upload --upload-port <COM_PORT>
   ```
-- **สำหรับ Node 3 (จุดเสี่ยงน้ำท่วมชุมชน):**
+- **สำหรับ Node 2 (ริมแม่น้ำเฝ้าระวัง — กรณีใช้เซนเซอร์ HC-SR04):**
   ```bash
   cd TX_Node
   pio run -e node3 --target upload --upload-port <COM_PORT>
   ```
+
+> 💡 **หมายเหตุ:** ทั้ง `env:node2` และ `env:node3` ถูกตั้งค่าเป็น **Node ID = 2** เหมือนกัน สามารถเลือก Environment ให้ตรงกับเซนเซอร์อัลตร้าโซนิคที่เสียบใช้งานบนบอร์ดโหนดที่ 2 ได้ทันที

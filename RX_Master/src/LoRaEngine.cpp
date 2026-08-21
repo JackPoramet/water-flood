@@ -4,6 +4,7 @@
 #include "Config.h"
 #include "Protocol.h"
 #include "SystemState.h"
+#include "TelegramNotifier.h"
 
 static int retryCount = 0;
 static unsigned long pollStartMillis = 0;
@@ -82,8 +83,20 @@ static void parseLoRaResponse(int packetSize) {
       if (xSemaphoreTake(dataMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
         nodes[idx].online           = true;
         nodes[idx].waterLevelCm     = payload->waterLevelCm;
-        nodes[idx].waterPercent     = payload->waterPercent;
-        nodes[idx].floodStatus      = payload->floodStatus;
+        
+        // คำนวณ floodStatus ตามเกณฑ์ Threshold ที่กำหนดไว้บน Master
+        uint8_t calculatedStatus = FLOOD_NORMAL;
+        if (nodes[idx].critThresholdCm > 0 && payload->waterLevelCm >= nodes[idx].critThresholdCm) {
+          calculatedStatus = FLOOD_CRITICAL;
+        } else if (nodes[idx].warnThresholdCm > 0 && payload->waterLevelCm >= nodes[idx].warnThresholdCm) {
+          calculatedStatus = FLOOD_WARNING;
+        } else {
+          calculatedStatus = FLOOD_NORMAL;
+        }
+        nodes[idx].floodStatus = calculatedStatus;
+
+        uint16_t maxRef = (nodes[idx].critThresholdCm > 0) ? (uint16_t)(nodes[idx].critThresholdCm * 1.25) : 300;
+        nodes[idx].waterPercent     = constrain(map(payload->waterLevelCm, 0, maxRef, 0, 100), 0, 100);
         nodes[idx].batteryMilliVolt = payload->batteryMilliVolt;
         nodes[idx].uptimeSec        = payload->uptimeSec;
         nodes[idx].rssi             = LoRa.packetRssi();
@@ -96,10 +109,15 @@ static void parseLoRaResponse(int packetSize) {
       Serial.println(F("=================================================="));
       Serial.printf("[Master<-Node#%d] DATA_RESP SUCCESS!\n", sender);
       Serial.printf("    - Water Level : %d cm (%d%%)\n", nodes[idx].waterLevelCm, nodes[idx].waterPercent);
-      Serial.printf("    - Flood Status: %s\n", (nodes[idx].floodStatus == 2 ? "CRITICAL" : (nodes[idx].floodStatus == 1 ? "WARNING" : "NORMAL")));
+      Serial.printf("    - Flood Status: %s (Threshold: Warn>=%dcm, Crit>=%dcm)\n", 
+                    (nodes[idx].floodStatus == 2 ? "CRITICAL" : (nodes[idx].floodStatus == 1 ? "WARNING" : "NORMAL")),
+                    nodes[idx].warnThresholdCm, nodes[idx].critThresholdCm);
       Serial.printf("    - Battery     : %d mV\n", nodes[idx].batteryMilliVolt);
       Serial.printf("    - Signal      : RSSI %d dBm | SNR %.1f dB\n", nodes[idx].rssi, nodes[idx].snr);
       Serial.println(F("=================================================="));
+
+      // ตรวจสอบและส่งแจ้งเตือน Telegram อัตโนมัติ (Async Queue)
+      checkNodeTelegramAlert(idx, nodes[idx].floodStatus, true);
 
       currentPollState = STATE_ADVANCE_NODE;
     }
@@ -168,6 +186,9 @@ void TaskLoRaPolling(void *pvParameters) {
               nodes[currentNodeIndex].timeoutCount++;
               xSemaphoreGive(dataMutex);
             }
+            // แจ้งเตือนโหนดขาดการเชื่อมต่อเข้า Telegram
+            checkNodeTelegramAlert(currentNodeIndex, nodes[currentNodeIndex].floodStatus, false);
+
             currentPollState = STATE_ADVANCE_NODE;
           }
         }

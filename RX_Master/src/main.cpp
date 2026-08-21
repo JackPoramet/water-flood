@@ -4,19 +4,25 @@
 #include "WebPortal.h"
 #include "LoRaEngine.h"
 #include "DisplayManager.h"
+#include "TelegramNotifier.h"
+#include "SettingsManager.h"
 
 // =========================================================================
-// 1. การตั้งค่าข้อมูล WiFi และตัวแปรระบบส่วนกลาง
+// 1. การตั้งค่าข้อมูล WiFi, Telegram และตัวแปรระบบส่วนกลาง
 // =========================================================================
-const char* WIFI_SSID = "SnackJack";     // ชื่อ WiFi ของท่าน
+const char* WIFI_SSID = "SnackJack_2.4GHz";     // ชื่อ WiFi ของท่าน
 const char* WIFI_PASS = "xxxxxxxx"; // รหัสผ่าน WiFi
+
+// --- การตั้งค่า Telegram Bot & Group Chat ID ---
+// รับ Token ได้จาก @BotFather และ Chat ID กลุ่มได้จาก @userinfobot หรือ @raw_data_bot
+const char* TELEGRAM_BOT_TOKEN = "8850291145:AAEhqiyjg8JvGca5jmiRVgu4NZjWyG_HgYo";
+const char* TELEGRAM_CHAT_ID   = "-1004431395744";
 
 SemaphoreHandle_t dataMutex = NULL;
 
 NodeInfo nodes[PROTOCOL_MAX_NODES] = {
-  {NODE_ID_1, "จุดที่ 1 (คลองระบายน้ำ)", false, 0, 0, FLOOD_NORMAL, 0, 0, 0, 0.0, 0, 0, 0},
-  {NODE_ID_2, "จุดที่ 2 (ริมแม่น้ำเฝ้าระวัง)", false, 0, 0, FLOOD_NORMAL, 0, 0, 0, 0.0, 0, 0, 0},
-  {NODE_ID_3, "จุดที่ 3 (จุดเสี่ยงน้ำท่วมชุมชน)", false, 0, 0, FLOOD_NORMAL, 0, 0, 0, 0.0, 0, 0, 0}
+  {NODE_ID_1, "จุดที่ 1 (คลองระบายน้ำ)", false, 0, 0, FLOOD_NORMAL, 0, 0, 0, 0.0, 0, 0, 0, FLOOD_NORMAL, false, 0, DEFAULT_WARN_THRESHOLD_CM, DEFAULT_CRIT_THRESHOLD_CM},
+  {NODE_ID_2, "จุดที่ 2 (ริมแม่น้ำเฝ้าระวัง)", false, 0, 0, FLOOD_NORMAL, 0, 0, 0, 0.0, 0, 0, 0, FLOOD_NORMAL, false, 0, DEFAULT_WARN_THRESHOLD_CM, DEFAULT_CRIT_THRESHOLD_CM}
 };
 
 PollState currentPollState = STATE_SEND_POLL;
@@ -38,6 +44,12 @@ void setup() {
 
   // สร้าง Mutex ป้องกันข้อมูลซ้อนทับ
   dataMutex = xSemaphoreCreateMutex();
+
+  // โหลดค่าเกณฑ์ระดับน้ำจาก Flash NVS / EEPROM
+  initSettings();
+
+  // เริ่มต้นคิวสำหรับระบบแจ้งเตือน Telegram
+  initTelegramNotifier();
 
   // Task 1 (Core 0): WiFi, mDNS, WebServer & REST API
   xTaskCreatePinnedToCore(
@@ -70,6 +82,17 @@ void setup() {
     1,
     NULL,
     1 // Core 1
+  );
+
+  // Task 4 (Core 0): Telegram Notification Sender (HTTPS TLS)
+  xTaskCreatePinnedToCore(
+    TaskTelegram,
+    "TaskTelegram",
+    8192,
+    NULL,
+    1,
+    NULL,
+    0 // Core 0
   );
 
   Serial.println(F("[+] FreeRTOS Multi-Core Tasks Spawned Successfully!"));
