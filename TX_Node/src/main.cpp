@@ -148,7 +148,7 @@ void setup() {
   initFloodSensor();
   Serial.println(F("[+] Sensor Mode: Ultrasonic (HC-SR04)"));
 #else
-  Serial.println(F("[+] Sensor Mode: Simulated Data"));
+  Serial.println(F("[-] Sensor Mode: No Sensor Attached"));
 #endif
 
   LoRa.setPins(PIN_LORA_SS, PIN_LORA_RST, PIN_LORA_DIO0);

@@ -10,7 +10,7 @@
 // =========================================================================
 // 1. การตั้งค่าข้อมูล WiFi, Telegram และตัวแปรระบบส่วนกลาง
 // =========================================================================
-const char* WIFI_SSID = "SnackJack_2.4GHz";     // ชื่อ WiFi ของท่าน
+const char* WIFI_SSID = "SnackJack";     // ชื่อ WiFi ของท่าน
 const char* WIFI_PASS = "xxxxxxxx"; // รหัสผ่าน WiFi
 
 // --- การตั้งค่า Telegram Bot & Group Chat ID ---
@@ -21,8 +21,8 @@ const char* TELEGRAM_CHAT_ID   = "-1004431395744";
 SemaphoreHandle_t dataMutex = NULL;
 
 NodeInfo nodes[PROTOCOL_MAX_NODES] = {
-  {NODE_ID_1, "จุดที่ 1 (คลองระบายน้ำ)", false, 0, 0, FLOOD_NORMAL, 0, 0, 0, 0.0, 0, 0, 0, FLOOD_NORMAL, false, 0, DEFAULT_WARN_THRESHOLD_CM, DEFAULT_CRIT_THRESHOLD_CM},
-  {NODE_ID_2, "จุดที่ 2 (ริมแม่น้ำเฝ้าระวัง)", false, 0, 0, FLOOD_NORMAL, 0, 0, 0, 0.0, 0, 0, 0, FLOOD_NORMAL, false, 0, DEFAULT_WARN_THRESHOLD_CM, DEFAULT_CRIT_THRESHOLD_CM}
+  {NODE_ID_1, "Node 1", false, 0, 0, FLOOD_NORMAL, 0, 0, 0, 0.0, 0, 0, 0, FLOOD_NORMAL, false, 0, DEFAULT_WARN_THRESHOLD_CM, DEFAULT_CRIT_THRESHOLD_CM},
+  {NODE_ID_2, "Node 2", false, 0, 0, FLOOD_NORMAL, 0, 0, 0, 0.0, 0, 0, 0, FLOOD_NORMAL, false, 0, DEFAULT_WARN_THRESHOLD_CM, DEFAULT_CRIT_THRESHOLD_CM}
 };
 
 PollState currentPollState = STATE_SEND_POLL;
@@ -84,13 +84,14 @@ void setup() {
     1 // Core 1
   );
 
-  // Task 4 (Core 0): Telegram Notification Sender (HTTPS TLS)
+  // Task 4 (Core 0): Telegram Notification & Interactive Bot Engine (HTTPS TLS)
+  // Priority 2: สูงกว่า WebServer เพื่อให้ส่งแจ้งเตือนเร่งด่วน (Critical/Warning) ได้ทันที
   xTaskCreatePinnedToCore(
     TaskTelegram,
     "TaskTelegram",
-    8192,
+    10240,
     NULL,
-    1,
+    2,
     NULL,
     0 // Core 0
   );

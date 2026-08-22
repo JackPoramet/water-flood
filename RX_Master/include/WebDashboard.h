@@ -272,6 +272,21 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
       setTimeout(() => { toast.style.display = 'none'; }, duration);
     }
 
+    function updateThresholdLabels(nodeId) {
+      const warnInput = document.getElementById(`warn-${nodeId}`);
+      const critInput = document.getElementById(`crit-${nodeId}`);
+      const lblSafe = document.getElementById(`lbl-safe-${nodeId}`);
+      const lblWarn = document.getElementById(`lbl-warn-${nodeId}`);
+      const lblCrit = document.getElementById(`lbl-crit-${nodeId}`);
+      if (warnInput && critInput && lblSafe && lblWarn && lblCrit) {
+        const w = parseInt(warnInput.value) || 0;
+        const c = parseInt(critInput.value) || 0;
+        lblSafe.innerText = w;
+        lblWarn.innerText = w;
+        lblCrit.innerText = c;
+      }
+    }
+
     async function fetchData() {
       try {
         const res = await fetch('/api/data');
@@ -280,6 +295,21 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
         if (!settingsInitialized) {
           renderSettings(data.nodes);
           settingsInitialized = true;
+        } else {
+          // ซิงค์ค่าเกณฑ์และอัปเดตป้ายสถานะแบบ Real-time ตลอดเวลา
+          data.nodes.forEach(node => {
+            const warnInput = document.getElementById(`warn-${node.id}`);
+            const critInput = document.getElementById(`crit-${node.id}`);
+            if (warnInput && critInput) {
+              if (document.activeElement !== warnInput) {
+                warnInput.value = node.warnThresholdCm;
+              }
+              if (document.activeElement !== critInput) {
+                critInput.value = node.critThresholdCm;
+              }
+              updateThresholdLabels(node.id);
+            }
+          });
         }
       } catch (err) {
         console.error("API error:", err);
@@ -303,7 +333,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
         if (node.online) {
           if (node.floodStatus === 2) {
             statusClass = 'status-critical';
-            statusText = 'วิกฤตน้ำท่วม (Flood)';
+            statusText = 'วิกฤตน้ำท่วม (Critical)';
             barColor = 'var(--danger)';
           } else if (node.floodStatus === 1) {
             statusClass = 'status-warning';
@@ -311,7 +341,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
             barColor = 'var(--warning)';
           } else {
             statusClass = 'status-normal';
-            statusText = 'ปกติ (Normal)';
+            statusText = 'ปลอดภัย (Safe)';
             barColor = 'var(--success)';
           }
         }
@@ -320,13 +350,13 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
         card.className = 'card';
         card.innerHTML = `
           <div class="card-top">
-            <span class="node-title">${node.name} [Node ${node.id}]</span>
+            <span class="node-title">${node.name}</span>
             <span class="status-tag ${statusClass}">${statusText}</span>
           </div>
           <div class="metrics">
             <div class="metric-box">
               <div class="metric-val" style="color: ${barColor}">${node.online ? node.waterLevelCm : '-'} <span style="font-size:0.85rem; font-weight:normal; color:var(--text-muted)">cm</span></div>
-              <div class="metric-lbl">ระดับความสูงน้ำ (เกณฑ์: เฝ้าระวัง ≥ ${node.warnThresholdCm || 100} cm, วิกฤต ≥ ${node.critThresholdCm || 200} cm)</div>
+              <div class="metric-lbl">ระยะห่างถึงผิวน้ำ (ปลอดภัย > ${node.warnThresholdCm || 300} cm | เฝ้าระวัง ≤ ${node.warnThresholdCm || 300} cm | วิกฤต ≤ ${node.critThresholdCm || 200} cm)</div>
             </div>
           </div>
           <div class="progress-bar-bg">
@@ -346,18 +376,25 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
       container.innerHTML = '';
 
       nodes.forEach(node => {
+        const warn = node.warnThresholdCm || 300;
+        const crit = node.critThresholdCm || 200;
         const item = document.createElement('div');
         item.className = 'settings-item';
         item.innerHTML = `
-          <div class="settings-item-title">${node.name} (Node ${node.id})</div>
+          <div class="settings-item-title">${node.name}</div>
+          <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:8px;">
+            ระดับ: <b style="color:var(--success)">🟢 ปลอดภัย (&gt; <span id="lbl-safe-${node.id}">${warn}</span> cm)</b> &bull; 
+                   <b style="color:var(--warning)">🟡 เฝ้าระวัง (&le; <span id="lbl-warn-${node.id}">${warn}</span> cm)</b> &bull; 
+                   <b style="color:var(--danger)">🔴 วิกฤต (&le; <span id="lbl-crit-${node.id}">${crit}</span> cm)</b>
+          </div>
           <div class="settings-row">
             <div class="form-group">
               <label class="form-label" for="warn-${node.id}">เฝ้าระวัง (Warning cm)</label>
-              <input type="number" id="warn-${node.id}" class="form-input" value="${node.warnThresholdCm || 100}" min="1" max="999">
+              <input type="number" id="warn-${node.id}" class="form-input" value="${warn}" min="1" max="999" oninput="updateThresholdLabels(${node.id})">
             </div>
             <div class="form-group">
               <label class="form-label" for="crit-${node.id}">วิกฤต (Critical cm)</label>
-              <input type="number" id="crit-${node.id}" class="form-input" value="${node.critThresholdCm || 200}" min="1" max="999">
+              <input type="number" id="crit-${node.id}" class="form-input" value="${crit}" min="1" max="999" oninput="updateThresholdLabels(${node.id})">
             </div>
             <button class="btn-save-sm" onclick="saveThreshold(${node.id})">บันทึก</button>
           </div>
@@ -377,8 +414,8 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
         showToast('กรุณากรอกตัวเลขเกณฑ์ระดับน้ำที่ถูกต้อง');
         return;
       }
-      if (critVal <= warnVal) {
-        showToast('ระดับวิกฤต ต้องมากกว่า ระดับเฝ้าระวัง');
+      if (warnVal <= critVal) {
+        showToast('ระดับเฝ้าระวัง ต้องมากกว่า ระดับวิกฤต (เซนเซอร์วัดจากบนลงผิวน้ำ)');
         return;
       }
 
@@ -395,6 +432,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
         });
         const json = await res.json();
         if (json.status === 'ok') {
+          updateThresholdLabels(nodeId);
           showToast(`บันทึกเกณฑ์ Node ${nodeId} ลง Flash NVS สำเร็จ!`);
           fetchData();
         } else {

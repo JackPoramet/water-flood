@@ -6,8 +6,8 @@
 // HcSr04Manager — จัดการเซนเซอร์วัดระยะอัลตร้าโซนิค HC-SR04 (Node 3)
 // =========================================================================
 // ฮาร์ดแวร์:
-//   Trig Pin : D10 (Output)
-//   Echo Pin : D11 (Input)
+//   Trig Pin : A3 (Output)
+//   Echo Pin : A4 (Input)
 //   พิสัยวัด : 2 cm – 400 cm (ความแม่นยำสูงในระยะใกล้)
 //   ความเร็วเสียงในอากาศ: ~343 m/s (0.0343 cm/us)
 // =========================================================================
@@ -20,10 +20,7 @@ void initHcSr04() {
   digitalWrite(PIN_HC_TRIG, LOW);
 
   Serial.println(F("[+] HC-SR04 Ultrasonic Initialized"));
-  Serial.print(F("[+] Trig Pin: D"));
-  Serial.print(PIN_HC_TRIG);
-  Serial.print(F(", Echo Pin: D"));
-  Serial.println(PIN_HC_ECHO);
+  Serial.println(F("    Trig Pin: A3, Echo Pin: A4"));
 }
 
 bool readHcSr04WaterLevel(uint16_t &waterLevelCm) {

@@ -6,62 +6,53 @@
 // JsnSr04tManager — จัดการเซนเซอร์วัดระยะอัลตร้าโซนิคกันน้ำ JSN-SR04T (Node 2)
 // =========================================================================
 // ขาต่อใช้งานบน LoRa32u4:
-//   Trig Pin : D10 (Output) -> ส่งพัลส์ 20us
-//   Echo Pin : D11 (Input)  -> รับพัลส์สะท้อนกลับ (Timeout 45,000us ~= 7.5 เมตร)
+//   Trig Pin : A3 (Output) -> ส่งพัลส์ 20us
+//   Echo Pin : A4 (Input)  -> รับพัลส์สะท้อนกลับ (Timeout 45,000us ~= 7.5 เมตร)
 //   VCC      : 5V (USB Pin)
 //   GND      : GND
 // =========================================================================
 
 void initJsnSr04t() {
   pinMode(PIN_JSN_TRIG, OUTPUT);
-  pinMode(PIN_JSN_ECHO, INPUT);
   digitalWrite(PIN_JSN_TRIG, LOW);
+  pinMode(PIN_JSN_ECHO, INPUT);
 
-  Serial.println(F("[+] JSN-SR04T Waterproof Ultrasonic Initialized"));
-  Serial.print(F("    Trig Pin: D"));
-  Serial.print(PIN_JSN_TRIG);
-  Serial.print(F(", Echo Pin: D"));
-  Serial.println(PIN_JSN_ECHO);
+  Serial.println(F("[+] JSN-SR04T Waterproof Ultrasonic Initialized (5V Pull-up Active)"));
+  Serial.println(F("    Trig Pin: A3, Echo Pin: A4"));
 }
 
 bool readJsnSr04tWaterLevel(uint16_t &waterLevelCm) {
-  const uint8_t MAX_RETRIES = 3;
+  // 1. ดึงขา Trig ลง LOW (0V) เพื่อเตรียมพร้อม
+  pinMode(PIN_JSN_TRIG, OUTPUT);
+  digitalWrite(PIN_JSN_TRIG, LOW);
+  delayMicroseconds(5);
 
-  for (uint8_t attempt = 0; attempt < MAX_RETRIES; attempt++) {
-    // 1. ส่งสัญญาณ Trigger Pulse 20us
-    digitalWrite(PIN_JSN_TRIG, LOW);
-    delayMicroseconds(5);
-    digitalWrite(PIN_JSN_TRIG, HIGH);
-    delayMicroseconds(20);
-    digitalWrite(PIN_JSN_TRIG, LOW);
+  // 2. ปล่อยขา Trig เป็น INPUT (Hi-Z) เพื่อให้ R 10k ดึงสัญญาณขึ้น 5.0V เต็ม
+  pinMode(PIN_JSN_TRIG, INPUT);
+  delayMicroseconds(15);
 
-    // 2. วัดความกว้างพัลส์สัญญาณ Echo (Timeout 45,000us ~= 7.5 เมตร)
-    unsigned long pulseWidth = pulseIn(PIN_JSN_ECHO, HIGH, 45000UL);
+  // 3. ดึงกลับลง LOW (0V) เพื่อจบสัญญาณ Trigger Pulse
+  pinMode(PIN_JSN_TRIG, OUTPUT);
+  digitalWrite(PIN_JSN_TRIG, LOW);
 
-    if (pulseWidth > 0) {
-      // คำนวณระยะทาง: ระยะทาง (cm) = pulseWidth * 0.0173681
-      unsigned int distance = (unsigned int)(pulseWidth * 0.0173681);
+  // 4. อ่านค่าความกว้างสัญญาณ Echo (Timeout 60,000 us ~= 10 เมตร)
+  long duration = pulseIn(PIN_JSN_ECHO, HIGH, 60000UL);
 
-      // พิสัยของ JSN-SR04T คือ 20cm ถึง 600cm
-      if (distance >= 20 && distance <= 600) {
-        waterLevelCm = (uint16_t)distance;
+  // 5. คำนวณระยะทางตามสูตรเสียง: distance = duration * 0.034 / 2
+  int distance = (int)(duration * 0.034 / 2);
 
-        Serial.print(F("[JSN-SR04T] Pulse: "));
-        Serial.print(pulseWidth);
-        Serial.print(F(" us -> Distance: "));
-        Serial.print(distance);
-        Serial.println(F(" cm"));
+  // แสดงผลบน Serial Monitor
+  Serial.print(F("Distance = "));
+  Serial.print(distance);
+  Serial.print(F(" cm (Pulse: "));
+  Serial.print(duration);
+  Serial.println(F(" us)"));
 
-        return true;
-      }
-    }
-
-    if (attempt < MAX_RETRIES - 1) {
-      delay(60); // เว้นระยะระหว่างการยิงพัลส์รอบใหม่
-    }
+  if (distance >= 18 && distance <= 600) {
+    waterLevelCm = (uint16_t)distance;
+    return true;
   }
 
-  Serial.println(F("[JSN-SR04T] ERROR: No echo response or out of range (<20cm or >600cm)"));
   return false;
 }
 

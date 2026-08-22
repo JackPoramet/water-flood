@@ -83,14 +83,14 @@ static void handleApiSaveSettings() {
       }
     }
 
-    if (targetIdx >= 0 && warnCm > 0 && critCm > warnCm) {
+    if (targetIdx >= 0 && critCm > 0 && warnCm > critCm) {
       if (saveNodeThresholds(targetIdx, warnCm, critCm)) {
         server.send(200, "application/json", "{\"status\":\"ok\",\"msg\":\"บันทึกเกณฑ์ระดับน้ำสำเร็จ\"}");
         return;
       }
     }
   }
-  server.send(400, "application/json", "{\"status\":\"error\",\"msg\":\"พารามิเตอร์ไม่ถูกต้อง (ต้องให้ วิกฤต > เฝ้าระวัง > 0)\"}");
+  server.send(400, "application/json", "{\"status\":\"error\",\"msg\":\"พารามิเตอร์ไม่ถูกต้อง (เซนเซอร์วัดจากบนลงล่าง: ต้องให้ เฝ้าระวัง > วิกฤต > 0)\"}");
 }
 
 static void handleApiTelegramTest() {
@@ -120,6 +120,8 @@ void TaskWebServer(void *pvParameters) {
 
   // โหมด Station Mode (WIFI_STA): เชื่อมต่อ WiFi บ้าน/เราเตอร์อย่างเดียว
   WiFi.mode(WIFI_STA);
+  // กำหนด Public DNS (Google & Cloudflare) เป็น Fallback ป้องกันปัญหา DNS Failed บนเครือข่ายบางแห่ง
+  WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, IPAddress(8, 8, 8, 8), IPAddress(1, 1, 1, 1));
   WiFi.begin(WIFI_SSID, WIFI_PASS);
 
   unsigned long wifiStart = millis();
@@ -148,6 +150,7 @@ void TaskWebServer(void *pvParameters) {
     Serial.printf ("[WiFi Station] Connected! Open Dashboard at:\n");
     Serial.printf ("   -> http://%s\n", WiFi.localIP().toString().c_str());
     Serial.printf ("   -> http://floodmonitor.local\n");
+    Serial.printf ("   -> Gateway: %s | DNS: %s\n", WiFi.gatewayIP().toString().c_str(), WiFi.dnsIP().toString().c_str());
     Serial.println(F("=================================================="));
 
     // ส่งข้อความแจ้งเตือนเมื่อระบบเริ่มทำงาน (Boot Alert)

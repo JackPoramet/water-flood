@@ -61,9 +61,13 @@ extern const char* TELEGRAM_CHAT_ID;       // Group Chat ID (เช่น -100xx
 #define TELEGRAM_CRITICAL_REMIND_MS (30UL * 60UL * 1000UL) // เตือนซ้ำกรณีวิกฤตต่อเนื่องทุก 30 นาที
 
 // =========================================================================
-// 6. ค่าเริ่มต้นเกณฑ์ระดับน้ำเตือนภัย (Default Thresholds in cm)
+// 6. ค่าเริ่มต้นเกณฑ์ระยะห่างผิวน้ำเตือนภัย (Top-Down Sensor Distance in cm)
+//    - เซนเซอร์ติดตั้งด้านบนยิงลงผิวน้ำ (ระยะยิ่งน้อย = น้ำยิ่งสูง):
+//      1. ปลอดภัย (Safe)   : ระยะห่าง > DEFAULT_WARN_THRESHOLD_CM (> 300 cm)
+//      2. เฝ้าระวัง (Warn) : ระยะห่าง <= DEFAULT_WARN_THRESHOLD_CM (<= 300 cm และ > 200 cm)
+//      3. วิกฤต (Critical) : ระยะห่าง <= DEFAULT_CRIT_THRESHOLD_CM (<= 200 cm)
 // =========================================================================
-#define DEFAULT_WARN_THRESHOLD_CM   100   // ค่าเริ่มต้นระดับน้ำเฝ้าระวัง (cm)
-#define DEFAULT_CRIT_THRESHOLD_CM   200   // ค่าเริ่มต้นระดับน้ำวิกฤต (cm)
+#define DEFAULT_WARN_THRESHOLD_CM   300   // ระยะห่างผิวน้ำเริ่มเฝ้าระวัง (cm)
+#define DEFAULT_CRIT_THRESHOLD_CM   200   // ระยะห่างผิวน้ำเข้าขั้นวิกฤต (cm)
 
 #endif // CONFIG_H

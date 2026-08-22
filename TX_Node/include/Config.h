@@ -51,17 +51,17 @@ const uint8_t MY_NODE_ID = NODE_ID;
 
 // =========================================================================
 // 6. Pin Definitions สำหรับ Ultrasonic Sensor (Node 2)
-//    - TRIG = D10, ECHO = D11 (หลีกเลี่ยง D9 ที่ต่อกับ Battery Divider และ D5 ที่ต่อกับ LoRa DIO1)
+//    - TRIG = A3, ECHO = A4
 // =========================================================================
 #ifdef USE_JSN_SR04T
-  #define PIN_JSN_TRIG          10      // Trigger Pin (D10)
-  #define PIN_JSN_ECHO          11      // Echo Pin (D11)
+  #define PIN_JSN_TRIG          A3      // Trigger Pin (A3)
+  #define PIN_JSN_ECHO          A4      // Echo Pin (A4)
   #define SENSOR_READ_INTERVAL_MS 1000  // อ่านค่าจากเซนเซอร์ทุก 1 วินาที
 #endif
 
 #ifdef USE_HC_SR04
-  #define PIN_HC_TRIG           10      // Trigger Pin (D10)
-  #define PIN_HC_ECHO           11      // Echo Pin (D11)
+  #define PIN_HC_TRIG           A3      // Trigger Pin (A3)
+  #define PIN_HC_ECHO           A4      // Echo Pin (A4)
   #define SENSOR_READ_INTERVAL_MS 1000  // อ่านค่าจากเซนเซอร์ทุก 1 วินาที
 #endif
 

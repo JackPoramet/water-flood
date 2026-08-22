@@ -40,7 +40,7 @@ void TaskOLEDDisplay(void *pvParameters) {
     }
 
     // Row 2 & 3: Node Rows (Node 1 ที่ y=32, Node 2 ที่ y=44)
-    const char* statusShort[] = {"OK", "WARN", "ALERT"};
+    const char* statusShort[] = {"SAFE", "WARN", "CRIT"};
 
     if (xSemaphoreTake(dataMutex, pdMS_TO_TICKS(50)) == pdTRUE) {
       for (int i = 0; i < PROTOCOL_MAX_NODES; i++) {

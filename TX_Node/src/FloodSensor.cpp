@@ -116,35 +116,16 @@ bool readFloodSensor(uint8_t nodeId, unsigned long bootMillis, SensorPayload &pa
 
 #else
 // =========================================================================
-// Fallback: ข้อมูลจำลอง
+// Fallback: เมื่อไม่มีการกำหนดชนิดเซนเซอร์
 // =========================================================================
+void initFloodSensor() {}
 
 bool readFloodSensor(uint8_t nodeId, unsigned long bootMillis, SensorPayload &payload) {
-  unsigned long now = millis();
-  float t = (now - bootMillis) / 1000.0;
-
-  if (nodeId == NODE_ID_1) {
-    payload.waterLevelCm = (uint16_t)(55.0 + 20.0 * sin(t / 25.0));
-  } else if (nodeId == NODE_ID_2) {
-    payload.waterLevelCm = (uint16_t)(145.0 + 25.0 * sin(t / 18.0));
-  } else {
-    payload.waterLevelCm = (uint16_t)(245.0 + 35.0 * sin(t / 12.0));
-  }
-
-  payload.waterPercent = constrain(map(payload.waterLevelCm, 0, 300, 0, 100), 0, 100);
-
-  if (payload.waterLevelCm >= 200) {
-    payload.floodStatus = FLOOD_CRITICAL;
-  } else if (payload.waterLevelCm >= 100) {
-    payload.floodStatus = FLOOD_WARNING;
-  } else {
-    payload.floodStatus = FLOOD_NORMAL;
-  }
-
+  payload.waterLevelCm = 0;
+  payload.waterPercent = 0;
+  payload.floodStatus = FLOOD_NORMAL;
   payload.batteryMilliVolt = 0;
-  payload.uptimeSec = (uint16_t)((now - bootMillis) / 1000);
-
-  return true;
+  payload.uptimeSec = (uint16_t)((millis() - bootMillis) / 1000);
+  return false;
 }
-
 #endif

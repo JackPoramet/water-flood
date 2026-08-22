@@ -84,19 +84,24 @@ static void parseLoRaResponse(int packetSize) {
         nodes[idx].online           = true;
         nodes[idx].waterLevelCm     = payload->waterLevelCm;
         
-        // คำนวณ floodStatus ตามเกณฑ์ Threshold ที่กำหนดไว้บน Master
+        // คำนวณ floodStatus เมื่อเซนเซอร์วัดระยะจากบนลงผิวน้ำ (ระยะยิ่งน้อย = ผิวน้ำยิ่งสูง)
         uint8_t calculatedStatus = FLOOD_NORMAL;
-        if (nodes[idx].critThresholdCm > 0 && payload->waterLevelCm >= nodes[idx].critThresholdCm) {
+        if (nodes[idx].critThresholdCm > 0 && payload->waterLevelCm <= nodes[idx].critThresholdCm) {
           calculatedStatus = FLOOD_CRITICAL;
-        } else if (nodes[idx].warnThresholdCm > 0 && payload->waterLevelCm >= nodes[idx].warnThresholdCm) {
+        } else if (nodes[idx].warnThresholdCm > 0 && payload->waterLevelCm <= nodes[idx].warnThresholdCm) {
           calculatedStatus = FLOOD_WARNING;
         } else {
-          calculatedStatus = FLOOD_NORMAL;
+          calculatedStatus = FLOOD_NORMAL; // ปลอดภัย (Safe / Normal)
         }
         nodes[idx].floodStatus = calculatedStatus;
 
-        uint16_t maxRef = (nodes[idx].critThresholdCm > 0) ? (uint16_t)(nodes[idx].critThresholdCm * 1.25) : 300;
-        nodes[idx].waterPercent     = constrain(map(payload->waterLevelCm, 0, maxRef, 0, 100), 0, 100);
+        // คำนวณเปอร์เซ็นต์ระดับน้ำ (ระยะ 0 cm = 100% เต็มตลิ่ง, ระยะ >= maxClearance = 0% ปลอดภัย)
+        uint16_t maxClearance = (nodes[idx].warnThresholdCm > 0) ? (uint16_t)(nodes[idx].warnThresholdCm * 1.35) : 400;
+        if (payload->waterLevelCm >= maxClearance) {
+          nodes[idx].waterPercent = 0;
+        } else {
+          nodes[idx].waterPercent = constrain(map(payload->waterLevelCm, maxClearance, 0, 0, 100), 0, 100);
+        }
         nodes[idx].batteryMilliVolt = payload->batteryMilliVolt;
         nodes[idx].uptimeSec        = payload->uptimeSec;
         nodes[idx].rssi             = LoRa.packetRssi();
@@ -108,12 +113,12 @@ static void parseLoRaResponse(int packetSize) {
 
       Serial.println(F("=================================================="));
       Serial.printf("[Master<-Node#%d] DATA_RESP SUCCESS!\n", sender);
-      Serial.printf("    - Water Level : %d cm (%d%%)\n", nodes[idx].waterLevelCm, nodes[idx].waterPercent);
-      Serial.printf("    - Flood Status: %s (Threshold: Warn>=%dcm, Crit>=%dcm)\n", 
-                    (nodes[idx].floodStatus == 2 ? "CRITICAL" : (nodes[idx].floodStatus == 1 ? "WARNING" : "NORMAL")),
-                    nodes[idx].warnThresholdCm, nodes[idx].critThresholdCm);
-      Serial.printf("    - Battery     : %d mV\n", nodes[idx].batteryMilliVolt);
-      Serial.printf("    - Signal      : RSSI %d dBm | SNR %.1f dB\n", nodes[idx].rssi, nodes[idx].snr);
+      Serial.printf("    - Water Distance: %d cm (Risk/Level: %d%%)\n", nodes[idx].waterLevelCm, nodes[idx].waterPercent);
+      Serial.printf("    - Flood Status  : %s (Safe > %dcm | Warn <= %dcm | Crit <= %dcm)\n", 
+                    (nodes[idx].floodStatus == 2 ? "CRITICAL" : (nodes[idx].floodStatus == 1 ? "WARNING" : "SAFE")),
+                    nodes[idx].warnThresholdCm, nodes[idx].warnThresholdCm, nodes[idx].critThresholdCm);
+      Serial.printf("    - Battery       : %d mV\n", nodes[idx].batteryMilliVolt);
+      Serial.printf("    - Signal        : RSSI %d dBm | SNR %.1f dB\n", nodes[idx].rssi, nodes[idx].snr);
       Serial.println(F("=================================================="));
 
       // ตรวจสอบและส่งแจ้งเตือน Telegram อัตโนมัติ (Async Queue)
